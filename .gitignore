@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# SvelteKit and build output
+.svelte-kit/
+build/
+
+# Tests and tooling
+coverage/
+playwright-report/
+test-results/
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
