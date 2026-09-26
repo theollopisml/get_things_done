@@ -7,14 +7,15 @@ import { and, eq } from 'drizzle-orm';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { redirect, type Handle } from '@sveltejs/kit';
 
-const publicPaths = new Set(['/login', '/health', '/ready']);
+const operationalPaths = new Set(['/health', '/ready']);
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 	const isAuthRoute = path === '/api/auth' || path.startsWith('/api/auth/');
 	const publicPath = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
+	const isLoginRoute = publicPath === '/login';
 
-	if (!isAuthRoute && !publicPaths.has(publicPath)) {
+	if (!isAuthRoute && !operationalPaths.has(publicPath)) {
 		const current = await auth.api.getSession({ headers: event.request.headers });
 		const ownerId = env.OWNER_GITHUB_ID;
 		let isOwner = false;
@@ -34,15 +35,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			isOwner = matchingAccount.length > 0;
 		}
 
-		if (!current || !isOwner) {
+		if ((!current || !isOwner) && !isLoginRoute) {
 			if (event.request.method !== 'GET' || path.startsWith('/api/')) {
 				return new Response('Unauthorized', { status: 401 });
 			}
 			throw redirect(303, '/login');
 		}
 
-		event.locals.user = current.user;
-		event.locals.session = current.session;
+		if (current && isOwner) {
+			event.locals.user = current.user;
+			event.locals.session = current.session;
+		}
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });

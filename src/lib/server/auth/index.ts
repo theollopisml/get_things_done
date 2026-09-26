@@ -9,6 +9,10 @@ export const auth = betterAuth({
 	baseURL: env.BETTER_AUTH_URL,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'pg', schema }),
+	session: {
+		expiresIn: 60 * 60 * 24 * 30,
+		updateAge: 60 * 60 * 24
+	},
 	user: {
 		validateUserInfo: ({ source }) => validateGitHubOwner(source, env.OWNER_GITHUB_ID)
 	},

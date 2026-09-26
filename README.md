@@ -22,6 +22,8 @@ callback `http://localhost:5173/api/auth/callback/github`, puis renseigner
 `BETTER_AUTH_URL=http://localhost:5173`, `BETTER_AUTH_SECRET`,
 `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` et l'ID numérique stable du
 propriétaire dans `OWNER_GITHUB_ID` dans `.env`. Ne pas commiter ce fichier.
+La session reste valide pendant 30 jours et son expiration est prolongée lors
+d'un usage régulier.
 
 Pour arrêter la base :
 

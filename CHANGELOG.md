@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add GitHub sign-in, sign-out, and a renewable 30-day owner session.
 - Protect private pages and actions on the server, while allowing OAuth and operational routes.
 - Restrict GitHub sign-in to the configured owner's stable GitHub ID before account or session creation.
 - Prepare GitHub OAuth with Better Auth and versioned PostgreSQL tables for accounts and sessions.
