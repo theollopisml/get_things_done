@@ -21,7 +21,7 @@ slices:
       - description: "Ajouter PostgreSQL local via Docker Compose"
         done: true
       - description: "Configurer Drizzle et la première migration"
-        done: false
+        done: true
       - description: "Créer la structure domain/application/repositories/db"
         done: false
       - description: "Ajouter pnpm check et une CI minimale"

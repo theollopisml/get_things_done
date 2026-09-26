@@ -9,6 +9,7 @@ corepack enable pnpm
 pnpm install
 cp .env.example .env
 docker compose up -d --wait db
+pnpm db:migrate
 pnpm dev
 ```
 
@@ -23,3 +24,7 @@ docker compose down
 ```
 
 `docker compose down` conserve le volume et les données.
+
+Après une modification du schéma dans `src/lib/server/db/schema.ts`, générer
+une migration avec `pnpm db:generate`, relire son SQL dans
+`drizzle/migrations/`, puis l'appliquer avec `pnpm db:migrate`.
