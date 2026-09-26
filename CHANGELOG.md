@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Tailwind styling, Bits UI primitives, and Lucide icons to the app foundation.
 - Initialize the SvelteKit application with TypeScript, pnpm, and the Node adapter.
 - Initial product, architecture, and implementation planning documents.
 - Repository configuration and environment variable template.

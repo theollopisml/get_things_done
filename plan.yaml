@@ -15,7 +15,7 @@ slices:
       - description: "Initialiser SvelteKit + TypeScript + pnpm"
         done: true
       - description: "Configurer Tailwind, Bits UI et Lucide"
-        done: false
+        done: true
       - description: "Configurer ESLint, Prettier, svelte-check et Vitest"
         done: false
       - description: "Ajouter PostgreSQL local via Docker Compose"
