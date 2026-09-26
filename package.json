@@ -46,7 +46,9 @@
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
+		"@better-auth/drizzle-adapter": "^1.7.6",
 		"@lucide/svelte": "^1.48.0",
+		"better-auth": "^1.7.6",
 		"bits-ui": "^2.19.3",
 		"drizzle-orm": "^0.45.3",
 		"postgres": "^3.4.9"
