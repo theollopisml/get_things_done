@@ -29,6 +29,9 @@ Après une modification du schéma dans `src/lib/server/db/schema.ts`, générer
 une migration avec `pnpm db:generate`, relire son SQL dans
 `drizzle/migrations/`, puis l'appliquer avec `pnpm db:migrate`.
 
+`pnpm check` exécute le lint, le typecheck, les tests unitaires et le build.
+La CI exécute ces contrôles et applique les migrations sur un PostgreSQL neuf.
+
 ## Organisation du code
 
 Les règles métier pures iront dans `src/lib/domain/`. Les cas d'usage serveur

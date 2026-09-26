@@ -10,7 +10,7 @@ version: v1
 slices:
   - id: "01"
     name: bootstrap
-    done: false
+    done: true
     tasks:
       - description: "Initialiser SvelteKit + TypeScript + pnpm"
         done: true
@@ -25,7 +25,7 @@ slices:
       - description: "Créer la structure domain/application/repositories/db"
         done: true
       - description: "Ajouter pnpm check et une CI minimale"
-        done: false
+        done: true
 
   - id: "02"
     name: auth
