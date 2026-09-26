@@ -4,6 +4,12 @@ node_modules/
 # SvelteKit and build output
 .svelte-kit/
 build/
+.output/
+.vercel/
+.netlify/
+.wrangler/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
 # Tests and tooling
 coverage/

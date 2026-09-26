@@ -13,7 +13,7 @@ slices:
     done: false
     tasks:
       - description: "Initialiser SvelteKit + TypeScript + pnpm"
-        done: false
+        done: true
       - description: "Configurer Tailwind, Bits UI et Lucide"
         done: false
       - description: "Configurer ESLint, Prettier, svelte-check et Vitest"
