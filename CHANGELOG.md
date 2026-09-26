@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Establish domain, application, repository, and database module locations with a server-only Drizzle connection.
 - Add versioned Drizzle migrations and the initial `entries` table for Inbox captures.
 - Provide a persistent local PostgreSQL service with a readiness check and setup instructions.
 - Add lint, formatting, typecheck, and unit test commands for local development.

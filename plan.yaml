@@ -23,7 +23,7 @@ slices:
       - description: "Configurer Drizzle et la première migration"
         done: true
       - description: "Créer la structure domain/application/repositories/db"
-        done: false
+        done: true
       - description: "Ajouter pnpm check et une CI minimale"
         done: false
 

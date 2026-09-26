@@ -28,3 +28,11 @@ docker compose down
 Après une modification du schéma dans `src/lib/server/db/schema.ts`, générer
 une migration avec `pnpm db:generate`, relire son SQL dans
 `drizzle/migrations/`, puis l'appliquer avec `pnpm db:migrate`.
+
+## Organisation du code
+
+Les règles métier pures iront dans `src/lib/domain/`. Les cas d'usage serveur
+iront dans `src/lib/server/application/`, la persistance dans
+`src/lib/server/repositories/`, et le schéma ainsi que la connexion Drizzle
+dans `src/lib/server/db/`. Les dossiers métier seront remplis au fil des
+slices qui les utilisent.
