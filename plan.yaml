@@ -34,7 +34,7 @@ slices:
       - description: "Configurer Better Auth + GitHub OAuth"
         done: false
       - description: "Ajouter l'allowlist OWNER_GITHUB_ID"
-        done: false
+        done: true
       - description: "Protéger toutes les routes et actions privées côté serveur"
         done: false
       - description: "Ajouter login/logout et session persistante"

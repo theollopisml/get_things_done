@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Restrict GitHub sign-in to the configured owner's stable GitHub ID before account or session creation.
 - Prepare GitHub OAuth with Better Auth and versioned PostgreSQL tables for accounts and sessions.
 - Add an aggregated local check and GitHub Actions CI for code quality, builds, and PostgreSQL migrations.
 - Establish domain, application, repository, and database module locations with a server-only Drizzle connection.
