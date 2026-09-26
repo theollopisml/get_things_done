@@ -17,7 +17,7 @@ slices:
       - description: "Configurer Tailwind, Bits UI et Lucide"
         done: true
       - description: "Configurer ESLint, Prettier, svelte-check et Vitest"
-        done: false
+        done: true
       - description: "Ajouter PostgreSQL local via Docker Compose"
         done: false
       - description: "Configurer Drizzle et la première migration"
