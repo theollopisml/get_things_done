@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Provide a persistent local PostgreSQL service with a readiness check and setup instructions.
 - Add lint, formatting, typecheck, and unit test commands for local development.
 - Add Tailwind styling, Bits UI primitives, and Lucide icons to the app foundation.
 - Initialize the SvelteKit application with TypeScript, pnpm, and the Node adapter.

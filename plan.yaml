@@ -19,7 +19,7 @@ slices:
       - description: "Configurer ESLint, Prettier, svelte-check et Vitest"
         done: true
       - description: "Ajouter PostgreSQL local via Docker Compose"
-        done: false
+        done: true
       - description: "Configurer Drizzle et la première migration"
         done: false
       - description: "Créer la structure domain/application/repositories/db"
