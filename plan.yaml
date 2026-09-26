@@ -32,11 +32,11 @@ slices:
     done: false
     tasks:
       - description: "Configurer Better Auth + GitHub OAuth"
-        done: false
+        done: true
       - description: "Ajouter l'allowlist OWNER_GITHUB_ID"
         done: true
       - description: "Protéger toutes les routes et actions privées côté serveur"
-        done: false
+        done: true
       - description: "Ajouter login/logout et session persistante"
         done: false
 
