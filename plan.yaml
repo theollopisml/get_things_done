@@ -45,9 +45,9 @@ slices:
     done: false
     tasks:
       - description: "Créer le shell responsive desktop/mobile"
-        done: false
+        done: true
       - description: "Ajouter la navigation principale"
-        done: false
+        done: true
       - description: "Configurer JetBrains Mono et les primitives UI"
         done: false
       - description: "Ajouter manifest PWA online-only"

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add desktop and mobile navigation to Home, Inbox, Tasks, Projects, and Visions, with clear placeholders for upcoming sections.
+- Add a responsive workspace frame for signed-in pages with an accessible sign-out control.
 - Add GitHub sign-in, sign-out, and a renewable 30-day owner session.
 - Protect private pages and actions on the server, while allowing OAuth and operational routes.
 - Restrict GitHub sign-in to the configured owner's stable GitHub ID before account or session creation.

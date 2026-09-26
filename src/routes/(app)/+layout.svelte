@@ -1,0 +1,118 @@
+<script lang="ts">
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import Binoculars from '@lucide/svelte/icons/binoculars';
+	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
+	import House from '@lucide/svelte/icons/house';
+	import Inbox from '@lucide/svelte/icons/inbox';
+	import ListTodo from '@lucide/svelte/icons/list-todo';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import { authClient } from '$lib/auth-client';
+
+	const navigation = [
+		{ href: '/', label: 'Accueil', icon: House },
+		{ href: '/inbox', label: 'Inbox', icon: Inbox },
+		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
+		{ href: '/projects', label: 'Projects', icon: FolderKanban },
+		{ href: '/visions', label: 'Visions', icon: Binoculars }
+	] as const;
+
+	let { children } = $props();
+	let pending = $state(false);
+	let error = $state('');
+
+	async function signOut() {
+		pending = true;
+		error = '';
+		try {
+			const result = await authClient.signOut();
+			if (result.error) {
+				error = 'Déconnexion impossible. Réessaie.';
+				return;
+			}
+			window.location.assign('/login');
+		} catch {
+			error = 'Déconnexion impossible. Vérifie ta connexion et réessaie.';
+		} finally {
+			pending = false;
+		}
+	}
+</script>
+
+<div class="min-h-dvh bg-slate-50 text-slate-900">
+	<header class="border-b border-slate-200 bg-white">
+		<div
+			class="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
+		>
+			<div class="flex min-w-0 items-center gap-3 font-semibold tracking-tight">
+				<span
+					class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white"
+				>
+					<ListTodo size={20} aria-hidden="true" />
+				</span>
+				<span class="truncate">Get Things Done</span>
+			</div>
+			<nav aria-label="Navigation principale" class="hidden items-center gap-1 lg:flex">
+				{#each navigation as item (item.href)}
+					{@const active = page.url.pathname === item.href}
+					<a
+						href={resolve(item.href)}
+						aria-current={active ? 'page' : undefined}
+						class="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+						class:bg-slate-900={active}
+						class:text-white={active}
+						class:text-slate-600={!active}
+						class:hover:bg-slate-100={!active}
+						class:hover:text-slate-950={!active}
+					>
+						<item.icon size={17} aria-hidden="true" />
+						{item.label}
+					</a>
+				{/each}
+			</nav>
+			<button
+				type="button"
+				onclick={signOut}
+				disabled={pending}
+				class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-50"
+			>
+				<LogOut size={17} aria-hidden="true" />
+				<span class="hidden sm:inline">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
+				<span class="sr-only sm:hidden">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
+			</button>
+		</div>
+		{#if error}
+			<p role="alert" class="mx-auto max-w-7xl px-4 pb-3 text-sm text-red-700 sm:px-6 lg:px-8">
+				{error}
+			</p>
+		{/if}
+	</header>
+
+	<main
+		id="main-content"
+		class="mx-auto w-full max-w-7xl px-4 pt-8 pb-28 sm:px-6 sm:pt-10 lg:px-8 lg:pb-10"
+	>
+		{@render children()}
+	</main>
+
+	<nav
+		aria-label="Navigation principale"
+		class="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+	>
+		<div class="mx-auto grid max-w-2xl grid-cols-5 px-1 sm:px-4">
+			{#each navigation as item (item.href)}
+				{@const active = page.url.pathname === item.href}
+				<a
+					href={resolve(item.href)}
+					aria-current={active ? 'page' : undefined}
+					class="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+					class:text-slate-950={active}
+					class:text-slate-500={!active}
+				>
+					<item.icon size={20} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
+					<span class="truncate">{item.label}</span>
+				</a>
+			{/each}
+		</div>
+	</nav>
+</div>
