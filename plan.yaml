@@ -49,7 +49,7 @@ slices:
       - description: "Ajouter la navigation principale"
         done: true
       - description: "Configurer JetBrains Mono et les primitives UI"
-        done: false
+        done: true
       - description: "Ajouter manifest PWA online-only"
         done: false
       - description: "Mettre en place les bases keyboard-first"

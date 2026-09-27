@@ -36,7 +36,7 @@
 		type="button"
 		onclick={signIn}
 		disabled={pending}
-		class="min-h-11 rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-50"
+		class="ui-button ui-button-primary ui-focus"
 	>
 		{pending ? 'Redirection…' : 'Continuer avec GitHub'}
 	</button>

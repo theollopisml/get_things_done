@@ -58,7 +58,7 @@
 					<a
 						href={resolve(item.href)}
 						aria-current={active ? 'page' : undefined}
-						class="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+						class="ui-focus inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium"
 						class:bg-slate-900={active}
 						class:text-white={active}
 						class:text-slate-600={!active}
@@ -74,7 +74,7 @@
 				type="button"
 				onclick={signOut}
 				disabled={pending}
-				class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-50"
+				class="ui-button ui-button-quiet ui-focus shrink-0 px-3"
 			>
 				<LogOut size={17} aria-hidden="true" />
 				<span class="hidden sm:inline">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
@@ -105,7 +105,7 @@
 				<a
 					href={resolve(item.href)}
 					aria-current={active ? 'page' : undefined}
-					class="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+					class="ui-focus flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium"
 					class:text-slate-950={active}
 					class:text-slate-500={!active}
 				>

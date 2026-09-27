@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Self-host JetBrains Mono and use shared button and focus styles across the app.
 - Add desktop and mobile navigation to Home, Inbox, Tasks, Projects, and Visions, with clear placeholders for upcoming sections.
 - Add a responsive workspace frame for signed-in pages with an accessible sign-out control.
 - Add GitHub sign-in, sign-out, and a renewable 30-day owner session.

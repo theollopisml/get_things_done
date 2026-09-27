@@ -1,1 +1,53 @@
 @import 'tailwindcss';
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('./lib/assets/JetBrainsMono-Regular.woff2') format('woff2');
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('./lib/assets/JetBrainsMono-Medium.woff2') format('woff2');
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('./lib/assets/JetBrainsMono-SemiBold.woff2') format('woff2');
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+}
+
+@theme {
+	--font-sans: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+	html {
+		font-family: var(--font-sans);
+	}
+}
+
+@layer components {
+	.ui-focus {
+		@apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900;
+	}
+
+	.ui-button {
+		@apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50;
+	}
+
+	.ui-button-primary {
+		@apply bg-slate-900 text-white hover:bg-slate-700;
+	}
+
+	.ui-button-quiet {
+		@apply text-slate-600 hover:bg-slate-100 hover:text-slate-950;
+	}
+}
