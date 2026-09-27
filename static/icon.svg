@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+	<title>Get Things Done</title>
+	<rect width="512" height="512" fill="#0f172a" />
+	<g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="28">
+		<path d="m124 176 24 24 40-48" />
+		<path d="M228 180h156" />
+		<path d="m124 252 24 24 40-48" />
+		<path d="M228 256h156" />
+		<path d="m124 328 24 24 40-48" />
+		<path d="M228 332h156" />
+	</g>
+</svg>

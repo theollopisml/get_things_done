@@ -51,7 +51,7 @@ slices:
       - description: "Configurer JetBrains Mono et les primitives UI"
         done: true
       - description: "Ajouter manifest PWA online-only"
-        done: false
+        done: true
       - description: "Mettre en place les bases keyboard-first"
         done: false
 
