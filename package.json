@@ -8,7 +8,8 @@
 		"node": ">=24 <25"
 	},
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "docker compose up -d --wait db && vite dev",
+		"dev:app": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync",

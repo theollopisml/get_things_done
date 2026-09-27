@@ -15,7 +15,9 @@ pnpm dev
 
 L'application est disponible sur `http://localhost:5173`. La base PostgreSQL
 locale écoute uniquement sur `127.0.0.1:5432` et ses données restent dans le
-volume Docker `postgres_data`.
+volume Docker `postgres_data`. Après la première installation, `pnpm dev`
+démarre automatiquement la base locale avant l'application. `pnpm dev:app`
+démarre seulement l'application si une autre base est déjà disponible.
 
 Pour préparer l'authentification GitHub, créer une OAuth App avec l'URL de
 callback `http://localhost:5173/api/auth/callback/github`, puis renseigner
@@ -24,6 +26,10 @@ callback `http://localhost:5173/api/auth/callback/github`, puis renseigner
 propriétaire dans `OWNER_GITHUB_ID` dans `.env`. Ne pas commiter ce fichier.
 La session reste valide pendant 30 jours et son expiration est prolongée lors
 d'un usage régulier.
+
+Si l'application répond `500` avec `ECONNREFUSED 127.0.0.1:5432`, relancer
+`pnpm dev` pour démarrer la base. `pnpm check` valide le code et le build,
+mais ne démarre pas la base locale.
 
 Pour arrêter la base :
 

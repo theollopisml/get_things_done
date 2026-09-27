@@ -29,5 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Start local PostgreSQL automatically before `pnpm dev`, with `pnpm dev:app` for an existing database.
 - Track implementation progress for each task in the project plan.
 - Require small, atomic commits and consistent changelog maintenance.
+
+### Fixed
+
+- Serve the browser's fallback favicon directly without invoking session lookup.
