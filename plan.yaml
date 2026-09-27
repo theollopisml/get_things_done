@@ -42,7 +42,7 @@ slices:
 
   - id: "03"
     name: app-shell
-    done: false
+    done: true
     tasks:
       - description: "Créer le shell responsive desktop/mobile"
         done: true
@@ -53,7 +53,7 @@ slices:
       - description: "Ajouter manifest PWA online-only"
         done: true
       - description: "Mettre en place les bases keyboard-first"
-        done: false
+        done: true
 
   - id: "04"
     name: collector-inbox

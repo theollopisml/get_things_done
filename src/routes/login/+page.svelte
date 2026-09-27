@@ -26,6 +26,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Connexion · Get Things Done</title>
+</svelte:head>
+
 <main class="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 text-slate-900">
 	<div class="space-y-2">
 		<h1 class="text-3xl font-semibold">Get Things Done</h1>

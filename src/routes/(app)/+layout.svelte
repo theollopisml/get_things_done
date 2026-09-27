@@ -40,6 +40,18 @@
 </script>
 
 <div class="min-h-dvh bg-slate-50 text-slate-900">
+	<a
+		href="#main-content"
+		class="ui-focus sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-medium focus:text-slate-950 focus:shadow-lg"
+	>
+		Aller au contenu
+	</a>
+	<a
+		href="#mobile-navigation"
+		class="ui-focus sr-only focus:not-sr-only focus:fixed focus:top-16 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-medium focus:text-slate-950 focus:shadow-lg lg:hidden"
+	>
+		Aller à la navigation
+	</a>
 	<header class="border-b border-slate-200 bg-white">
 		<div
 			class="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
@@ -90,12 +102,15 @@
 
 	<main
 		id="main-content"
+		tabindex="-1"
 		class="mx-auto w-full max-w-7xl px-4 pt-8 pb-28 sm:px-6 sm:pt-10 lg:px-8 lg:pb-10"
 	>
 		{@render children()}
 	</main>
 
 	<nav
+		id="mobile-navigation"
+		tabindex="-1"
 		aria-label="Navigation principale"
 		class="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
 	>
@@ -108,6 +123,7 @@
 					class="ui-focus flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium"
 					class:text-slate-950={active}
 					class:text-slate-500={!active}
+					class:bg-slate-100={active}
 				>
 					<item.icon size={20} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
 					<span class="truncate">{item.label}</span>
