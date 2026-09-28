@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Open Task editing in a focused modal while preserving autosave, retry, and unsaved input on save errors.
 - Put Review in the desktop and mobile navigation and show unclassified captures in a discreet Review filter.
 - Remove the standalone Inbox page while keeping retry, editing, manual classification, and deletion available in Review.
 - Keep Review actions quiet until hover or keyboard focus, with a clear type-first editing panel that remains available on touch screens.
