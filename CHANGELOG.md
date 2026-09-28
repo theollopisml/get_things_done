@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a server-only Jev Decisions API client with pinned model, response validation, timeout, and safe error codes.
 - Capture ideas in a single multiline Collector field, with optional direct Task, Project, or Vision classification and retry on failed saves.
 - Review and edit Inbox captures with autosave, then process them oldest first with Task, Project, Vision, Later, and Delete actions.
 - Persist classified captures transactionally with PostgreSQL models and validate Collector and Inbox actions with Zod.

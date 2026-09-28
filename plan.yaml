@@ -81,7 +81,7 @@ slices:
       - description: "Faire évoluer Entry avec une migration pour garder la source, la cible et la clé d'idempotence"
         done: true
       - description: "Créer le client Jev server-only via OpenRouter et valider ses réponses"
-        done: false
+        done: true
       - description: "Définir les choix bornés Task/Project/Vision et les rattachements facultatifs"
         done: false
       - description: "Classifier les captures du Collector après persistance avec échec récupérable et Retry"
