@@ -15,6 +15,133 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 		await client.end();
 	});
 
+	it('lists Jev review entries newest first with parent details and an unreviewed filter', async () => {
+		const { db } = await import('$lib/server/db');
+		const { checkpoints, entries, projects, tasks, visions } =
+			await import('$lib/server/db/schema');
+		const { confirmReview, correctReviewRelation } = await import('./captures');
+		const { listJevReviewEntries } = await import('$lib/server/repositories/captures');
+		const { eq } = await import('drizzle-orm');
+		const classifiedAt = new Date();
+		const [vision] = await db.insert(visions).values({ title: 'Cap personnel' }).returning();
+		const [parentProject] = await db
+			.insert(projects)
+			.values({ title: 'Portfolio', visionId: vision.id })
+			.returning();
+		const [reviewedProject] = await db
+			.insert(projects)
+			.values({ title: 'Projet revu', visionId: vision.id })
+			.returning();
+		const [task] = await db
+			.insert(tasks)
+			.values({ title: 'Tâche à revoir', projectId: parentProject.id, deletedAt: classifiedAt })
+			.returning();
+		const [unreviewed] = await db
+			.insert(entries)
+			.values({
+				rawContent: 'Tâche à revoir\n\nContexte original',
+				classificationState: 'classified',
+				classificationSource: 'jev',
+				classifiedAt,
+				taskId: task.id,
+				createdAt: new Date(classifiedAt.getTime() - 1000)
+			})
+			.returning();
+		const [reviewed] = await db
+			.insert(entries)
+			.values({
+				rawContent: 'Projet revu',
+				classificationState: 'classified',
+				classificationSource: 'jev',
+				classifiedAt,
+				reviewedAt: classifiedAt,
+				projectId: reviewedProject.id,
+				createdAt: classifiedAt
+			})
+			.returning();
+		const [manual] = await db
+			.insert(entries)
+			.values({
+				rawContent: 'Vision manuelle',
+				classificationState: 'classified',
+				classificationSource: 'manual',
+				classifiedAt,
+				visionId: vision.id
+			})
+			.returning();
+		const [removed] = await db
+			.insert(entries)
+			.values({
+				rawContent: 'Capture supprimée',
+				classificationState: 'classified',
+				classificationSource: 'jev',
+				classifiedAt,
+				visionId: vision.id,
+				deletedAt: classifiedAt
+			})
+			.returning();
+		let checkpointId: string | null = null;
+		try {
+			const all = await listJevReviewEntries();
+			const matching = all.filter((entry) => [unreviewed.id, reviewed.id].includes(entry.id));
+			expect(matching.map((entry) => entry.id)).toEqual([reviewed.id, unreviewed.id]);
+			expect(all.some((entry) => entry.id === manual.id || entry.id === removed.id)).toBe(false);
+			expect(matching[0]).toMatchObject({
+				kind: 'project',
+				title: 'Projet revu',
+				parentTitle: 'Cap personnel',
+				reviewedAt: classifiedAt
+			});
+			expect(matching[1]).toMatchObject({
+				kind: 'task',
+				title: 'Tâche à revoir',
+				parentTitle: 'Portfolio',
+				objectDeleted: true
+			});
+			const pending = await listJevReviewEntries(true);
+			expect(pending.some((entry) => entry.id === unreviewed.id)).toBe(true);
+			expect(pending.some((entry) => entry.id === reviewed.id)).toBe(false);
+			expect(await confirmReview(manual.id)).toBe(false);
+			expect(await confirmReview(unreviewed.id)).toBe(true);
+			expect(await confirmReview(unreviewed.id)).toBe(true);
+			expect((await listJevReviewEntries(true)).some((entry) => entry.id === unreviewed.id)).toBe(
+				false
+			);
+			expect(await correctReviewRelation(unreviewed.id, '')).toBe('object_unavailable');
+			await db.update(tasks).set({ deletedAt: null }).where(eq(tasks.id, task.id));
+			expect(await correctReviewRelation(unreviewed.id, '')).toBe('updated');
+			expect((await db.select().from(tasks).where(eq(tasks.id, task.id)))[0].projectId).toBeNull();
+			expect(await correctReviewRelation(unreviewed.id, vision.id)).toBe('invalid_parent');
+			expect(await correctReviewRelation(unreviewed.id, parentProject.id)).toBe('updated');
+			const [checkpoint] = await db
+				.insert(checkpoints)
+				.values({ projectId: parentProject.id, title: 'Étape liée', position: 1 })
+				.returning();
+			checkpointId = checkpoint.id;
+			await db.update(tasks).set({ checkpointId }).where(eq(tasks.id, task.id));
+			expect(await correctReviewRelation(unreviewed.id, '')).toBe('checkpoint_conflict');
+			expect(await correctReviewRelation(reviewed.id, parentProject.id)).toBe('invalid_parent');
+			expect(await correctReviewRelation(reviewed.id, '')).toBe('updated');
+			expect(
+				(await db.select().from(projects).where(eq(projects.id, reviewedProject.id)))[0].visionId
+			).toBeNull();
+			expect(await correctReviewRelation(reviewed.id, vision.id)).toBe('updated');
+			expect(
+				(await db.select().from(projects).where(eq(projects.id, reviewedProject.id)))[0].visionId
+			).toBe(vision.id);
+		} finally {
+			for (const id of [unreviewed.id, reviewed.id, manual.id, removed.id]) {
+				await db.delete(entries).where(eq(entries.id, id));
+			}
+			await db.delete(tasks).where(eq(tasks.id, task.id));
+			if (checkpointId) await db.delete(checkpoints).where(eq(checkpoints.id, checkpointId));
+			for (const id of [parentProject.id, reviewedProject.id]) {
+				await db.delete(projects).where(eq(projects.id, id));
+			}
+			await db.delete(visions).where(eq(visions.id, vision.id));
+		}
+	});
+
 	it('enforces Entry state, review, probability, and request key constraints', async () => {
 		const { db } = await import('$lib/server/db');
 		const { entries } = await import('$lib/server/db/schema');

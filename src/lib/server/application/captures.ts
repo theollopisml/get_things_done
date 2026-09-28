@@ -7,6 +7,8 @@ import {
 	applyJevClassification,
 	classifyEntry,
 	classifyCollectorManually,
+	confirmJevClassification,
+	correctJevRelation,
 	createClassified,
 	createEntry,
 	deleteEntry,
@@ -14,6 +16,7 @@ import {
 	getClassifiedRelationTitle,
 	getOrCreateCaptureEntry,
 	listEntries,
+	listReviewParentOptions,
 	markJevFailed,
 	updateEntry
 } from '$lib/server/repositories/captures';
@@ -242,4 +245,19 @@ export async function processEntry(id: string, kind: unknown) {
 	return classifyEntry(id, result.data);
 }
 
-export { deleteEntry, listEntries };
+export async function confirmReview(id: unknown) {
+	const entryId = parseEntryId(id);
+	if (!entryId) throw new InvalidCapture('Capture invalide.');
+	return confirmJevClassification(entryId);
+}
+
+export async function correctReviewRelation(id: unknown, relationId: unknown) {
+	const entryId = parseEntryId(id);
+	const parentId = relationId === '' ? null : parseEntryId(relationId);
+	if (!entryId || (relationId !== '' && !parentId)) {
+		throw new InvalidCapture('Capture ou rattachement invalide.');
+	}
+	return correctJevRelation(entryId, parentId);
+}
+
+export { deleteEntry, listEntries, listReviewParentOptions };
