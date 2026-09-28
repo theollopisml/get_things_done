@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Preserve the original Entry and its Task, Project, or Vision link after manual classification, while showing only unclassified captures in the Inbox.
+- Add database constraints for Entry classification state, target, review metadata, probabilities, and unique capture request IDs.
 - Start local PostgreSQL automatically before `pnpm dev`, with `pnpm dev:app` for an existing database.
 - Track implementation progress for each task in the project plan.
 - Require small, atomic commits and consistent changelog maintenance.

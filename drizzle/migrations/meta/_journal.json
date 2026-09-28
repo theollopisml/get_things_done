@@ -22,6 +22,13 @@
       "when": 1790581846859,
       "tag": "0002_far_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790587310021,
+      "tag": "0003_woozy_ronan",
+      "breakpoints": true
     }
   ]
 }

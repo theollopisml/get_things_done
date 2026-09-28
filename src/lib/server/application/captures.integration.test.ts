@@ -1,8 +1,37 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with PostgreSQL', () => {
+	afterAll(async () => {
+		const { client } = await import('$lib/server/db');
+		await client.end();
+	});
+
+	it('enforces Entry state, review, probability, and request key constraints', async () => {
+		const { db } = await import('$lib/server/db');
+		const { entries } = await import('$lib/server/db/schema');
+		const { eq } = await import('drizzle-orm');
+		const requestId = crypto.randomUUID();
+		try {
+			await expect(
+				db.insert(entries).values({ rawContent: 'Invalid', classificationState: 'classified' })
+			).rejects.toThrow();
+			await expect(
+				db.insert(entries).values({ rawContent: 'Invalid', reviewedAt: new Date() })
+			).rejects.toThrow();
+			await expect(
+				db.insert(entries).values({ rawContent: 'Invalid', typeProbability: 1.1 })
+			).rejects.toThrow();
+			await db.insert(entries).values({ rawContent: 'Original', captureRequestId: requestId });
+			await expect(
+				db.insert(entries).values({ rawContent: 'Duplicate', captureRequestId: requestId })
+			).rejects.toThrow();
+		} finally {
+			await db.delete(entries).where(eq(entries.captureRequestId, requestId));
+		}
+	});
+
 	it('persists edits, classifies once, and keeps deleted entries out of the Inbox', async () => {
-		const { db, client } = await import('$lib/server/db');
+		const { db } = await import('$lib/server/db');
 		const { entries, tasks, projects, visions } = await import('$lib/server/db/schema');
 		const { capture, editEntry, processEntry, deleteEntry, listEntries, parseEntryId } =
 			await import('./captures');
@@ -24,6 +53,16 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 			created.push({ table: tasks, id: task!.id });
 			expect(await processEntry(entry.id, 'project')).toBeNull();
 			expect((await listEntries()).some((item) => item.id === entry.id)).toBe(false);
+			expect((await db.select().from(entries).where(eq(entries.id, entry.id)))[0]).toMatchObject({
+				classificationState: 'classified',
+				classificationSource: 'manual',
+				taskId: task!.id,
+				projectId: null,
+				visionId: null,
+				rawContent: '\n  Refaire mon CV  \n\n- Vérifier les dates'
+			});
+			expect(await editEntry(entry.id, 'Modification tardive')).toBeNull();
+			expect(await deleteEntry(entry.id)).toBeNull();
 			expect((await db.select().from(tasks).where(eq(tasks.id, task!.id)))[0]).toMatchObject({
 				title: 'Refaire mon CV',
 				description: '- Vérifier les dates',
@@ -32,6 +71,17 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 
 			const project = await capture('Projet\n\nContexte', 'project');
 			created.push({ table: projects, id: project.id });
+			const [projectEntry] = await db
+				.select()
+				.from(entries)
+				.where(eq(entries.projectId, project.id));
+			entryIds.push(projectEntry.id);
+			expect(projectEntry).toMatchObject({
+				classificationState: 'classified',
+				classificationSource: 'manual',
+				projectId: project.id,
+				rawContent: 'Projet\n\nContexte'
+			});
 			expect(
 				(await db.select().from(projects).where(eq(projects.id, project.id)))[0]
 			).toMatchObject({
@@ -41,6 +91,9 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 			});
 			const vision = await capture('Vision', 'vision');
 			created.push({ table: visions, id: vision.id });
+			const [visionEntry] = await db.select().from(entries).where(eq(entries.visionId, vision.id));
+			entryIds.push(visionEntry.id);
+			expect(visionEntry.classifiedAt).toBeInstanceOf(Date);
 			expect((await db.select().from(visions).where(eq(visions.id, vision.id)))[0]).toMatchObject({
 				title: 'Vision',
 				status: 'active'
@@ -51,9 +104,8 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 			expect(await deleteEntry(removed.id)).toEqual({ id: removed.id });
 			expect((await listEntries()).some((item) => item.id === removed.id)).toBe(false);
 		} finally {
-			for (const item of created) await db.delete(item.table).where(eq(item.table.id, item.id));
 			for (const id of entryIds) await db.delete(entries).where(eq(entries.id, id));
-			await client.end();
+			for (const item of created) await db.delete(item.table).where(eq(item.table.id, item.id));
 		}
 	});
 });

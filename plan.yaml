@@ -79,7 +79,7 @@ slices:
       - description: "Documenter le parcours classify-first, la Revue et l'Inbox de secours"
         done: true
       - description: "Faire évoluer Entry avec une migration pour garder la source, la cible et la clé d'idempotence"
-        done: false
+        done: true
       - description: "Créer le client Jev server-only via OpenRouter et valider ses réponses"
         done: false
       - description: "Définir les choix bornés Task/Project/Vision et les rattachements facultatifs"
