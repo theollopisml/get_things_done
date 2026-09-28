@@ -104,7 +104,7 @@ slices:
       - description: "Implémenter scheduled date/time et due date/time"
         done: true
       - description: "Créer la page Tasks"
-        done: false
+        done: true
       - description: "Ajouter les actions rapides et Undo"
         done: false
       - description: "Ajouter autosave et gestion des erreurs"
