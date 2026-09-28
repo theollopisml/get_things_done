@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { taskGroup } from '$lib/domain/tasks';
+	import { onDestroy } from 'svelte';
+	import { taskGroup, type TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
 	import type { PageData } from './$types';
 
@@ -9,6 +10,9 @@
 	let newTitle = $state('');
 	let creating = $state(false);
 	let error = $state('');
+	let busy = $state(false);
+	let undo = $state<{ id: string; status: TaskStatus; label: string } | null>(null);
+	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 	let filter = $state('all');
 	let projectFilter = $state('all');
 	let today = new Date().toLocaleDateString('sv-SE');
@@ -51,6 +55,47 @@
 		} else error = result.error || 'Création impossible. Réessaie.';
 		creating = false;
 	}
+
+	async function changeStatus(id: string, status: TaskStatus, isUndo = false) {
+		if (busy) return;
+		busy = true;
+		error = '';
+		const form = new FormData();
+		form.set('id', id);
+		form.set('status', status);
+		const result = await postAction('/tasks?/status', form);
+		if (result.ok) {
+			if (isUndo) undo = null;
+			else {
+				const previous = result.data?.previousStatus;
+				if (
+					previous === 'todo' ||
+					previous === 'in_progress' ||
+					previous === 'done' ||
+					previous === 'cancelled'
+				) {
+					undo = {
+						id,
+						status: previous,
+						label:
+							status === 'done'
+								? 'Task terminée.'
+								: status === 'cancelled'
+									? 'Task annulée.'
+									: status === 'in_progress'
+										? 'Task démarrée.'
+										: 'Task rouverte.'
+					};
+					clearTimeout(undoTimer);
+					undoTimer = setTimeout(() => (undo = null), 8000);
+				}
+			}
+			await invalidateAll();
+		} else error = result.error || 'Action impossible. Réessaie.';
+		busy = false;
+	}
+
+	onDestroy(() => clearTimeout(undoTimer));
 </script>
 
 <svelte:head><title>Tasks · Get Things Done</title></svelte:head>
@@ -96,6 +141,16 @@
 			>
 		</form>
 	{/if}
+	{#if undo}<div
+			role="status"
+			class="flex items-center gap-3 rounded-xl border border-slate-300 bg-white p-3 text-sm"
+		>
+			<span>{undo.label}</span><button
+				type="button"
+				class="ui-button ui-button-quiet ui-focus"
+				onclick={() => undo && changeStatus(undo.id, undo.status, true)}>Annuler l’action</button
+			>
+		</div>{/if}
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
 	{#if !data.history}
 		<div class="flex flex-wrap gap-4">
@@ -140,7 +195,36 @@
 					</h2>
 					{#each items as task (task.id)}
 						<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-							<h3 class="font-semibold break-words text-slate-950">{task.title}</h3>
+							<div class="flex flex-wrap items-start justify-between gap-3">
+								<h3 class="font-semibold break-words text-slate-950">{task.title}</h3>
+								<div class="flex flex-wrap gap-2">
+									{#if task.status === 'todo' || task.status === 'in_progress'}
+										<button
+											type="button"
+											disabled={busy}
+											onclick={() => changeStatus(task.id, 'done')}
+											class="ui-button ui-button-primary ui-focus">Terminer</button
+										>
+										{#if task.status === 'todo'}<button
+												type="button"
+												disabled={busy}
+												onclick={() => changeStatus(task.id, 'in_progress')}
+												class="ui-button ui-button-quiet ui-focus">Démarrer</button
+											>{/if}
+										<button
+											type="button"
+											disabled={busy}
+											onclick={() => changeStatus(task.id, 'cancelled')}
+											class="ui-button ui-button-quiet ui-focus">Annuler</button
+										>
+									{:else}<button
+											type="button"
+											disabled={busy}
+											onclick={() => changeStatus(task.id, 'todo')}
+											class="ui-button ui-button-quiet ui-focus">Rouvrir</button
+										>{/if}
+								</div>
+							</div>
 							<p class="mt-1 text-xs text-slate-500">
 								{task.projectTitle ? `${task.projectTitle} · ` : ''}{task.scheduledDate
 									? `Planifiée ${task.scheduledDate} · `
