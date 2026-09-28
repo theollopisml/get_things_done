@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
-import { entries, projects, tasks, visions } from '$lib/server/db/schema';
+import { checkpoints, entries, projects, tasks, visions } from '$lib/server/db/schema';
 import { splitCapture, type ClassifiedKind } from '$lib/domain/capture';
 import type { JevClassification } from '$lib/server/jev/classification';
 
@@ -96,6 +96,25 @@ export async function confirmJevClassification(id: string) {
 	});
 }
 
+export async function confirmJevClassifications(ids: string[]) {
+	if (!ids.length) return 0;
+	const now = new Date();
+	const confirmed = await db
+		.update(entries)
+		.set({ reviewedAt: now, updatedAt: now })
+		.where(
+			and(
+				inArray(entries.id, ids),
+				isNull(entries.deletedAt),
+				isNull(entries.reviewedAt),
+				eq(entries.classificationState, 'classified'),
+				eq(entries.classificationSource, 'jev')
+			)
+		)
+		.returning({ id: entries.id });
+	return confirmed.length;
+}
+
 export async function correctJevRelation(id: string, relationId: string | null) {
 	return db.transaction(async (tx) => {
 		const [entry] = await tx
@@ -156,6 +175,130 @@ export async function correctJevRelation(id: string, relationId: string | null) 
 			.update(entries)
 			.set({ reviewedAt: new Date(), updatedAt: new Date() })
 			.where(eq(entries.id, id));
+		return 'updated' as const;
+	});
+}
+
+export async function correctJevClassification(id: string, kind: ClassifiedKind) {
+	return db.transaction(async (tx) => {
+		const [entry] = await tx
+			.select()
+			.from(entries)
+			.where(and(eq(entries.id, id), isNull(entries.deletedAt)))
+			.for('update');
+		if (entry?.classificationState !== 'classified' || entry.classificationSource !== 'jev') {
+			return 'not_found' as const;
+		}
+		if (linkedKind(entry) === kind) return 'same_kind' as const;
+
+		let source: { title: string; description: string | null };
+		if (entry.taskId) {
+			const [task] = await tx.select().from(tasks).where(eq(tasks.id, entry.taskId)).for('update');
+			if (!task || task.deletedAt) return 'object_unavailable' as const;
+			if (
+				task.projectId ||
+				task.checkpointId ||
+				task.status !== 'todo' ||
+				task.scheduledDate ||
+				task.scheduledTime ||
+				task.dueDate ||
+				task.dueTime ||
+				task.recurrenceRule ||
+				task.recurrenceAnchorDate ||
+				task.position !== null ||
+				task.completedAt ||
+				task.cancelledAt
+			) {
+				return 'data_conflict' as const;
+			}
+			source = task;
+		} else if (entry.projectId) {
+			const [project] = await tx
+				.select()
+				.from(projects)
+				.where(eq(projects.id, entry.projectId))
+				.for('update');
+			if (!project || project.deletedAt) return 'object_unavailable' as const;
+			const [childTask] = await tx
+				.select({ id: tasks.id })
+				.from(tasks)
+				.where(eq(tasks.projectId, project.id))
+				.limit(1);
+			const [childCheckpoint] = await tx
+				.select({ id: checkpoints.id })
+				.from(checkpoints)
+				.where(eq(checkpoints.projectId, project.id))
+				.limit(1);
+			if (childTask || childCheckpoint) return 'children_conflict' as const;
+			if (
+				project.visionId ||
+				project.status !== 'planned' ||
+				project.startDate ||
+				project.dueDate ||
+				project.startedAt ||
+				project.completedAt
+			) {
+				return 'data_conflict' as const;
+			}
+			source = project;
+		} else if (entry.visionId) {
+			const [vision] = await tx
+				.select()
+				.from(visions)
+				.where(eq(visions.id, entry.visionId))
+				.for('update');
+			if (!vision || vision.deletedAt) return 'object_unavailable' as const;
+			const [childProject] = await tx
+				.select({ id: projects.id })
+				.from(projects)
+				.where(eq(projects.visionId, vision.id))
+				.limit(1);
+			if (childProject) return 'children_conflict' as const;
+			if (vision.status !== 'active') return 'data_conflict' as const;
+			source = vision;
+		} else {
+			return 'not_found' as const;
+		}
+
+		const values = { title: source.title, description: source.description };
+		let targetId: string;
+		if (kind === 'task') {
+			const [created] = await tx.insert(tasks).values(values).returning({ id: tasks.id });
+			targetId = created.id;
+		} else if (kind === 'project') {
+			const [created] = await tx.insert(projects).values(values).returning({ id: projects.id });
+			targetId = created.id;
+		} else {
+			const [created] = await tx.insert(visions).values(values).returning({ id: visions.id });
+			targetId = created.id;
+		}
+		const now = new Date();
+		await tx
+			.update(entries)
+			.set({
+				taskId: kind === 'task' ? targetId : null,
+				projectId: kind === 'project' ? targetId : null,
+				visionId: kind === 'vision' ? targetId : null,
+				reviewedAt: now,
+				updatedAt: now
+			})
+			.where(eq(entries.id, id));
+		if (entry.taskId) {
+			await tx
+				.update(tasks)
+				.set({ deletedAt: now, updatedAt: now })
+				.where(eq(tasks.id, entry.taskId));
+		} else if (entry.projectId) {
+			await tx
+				.update(projects)
+				.set({ deletedAt: now, updatedAt: now })
+				.where(eq(projects.id, entry.projectId));
+		} else if (entry.visionId) {
+			await tx
+				.update(visions)
+				.set({ deletedAt: now, updatedAt: now })
+				.where(eq(visions.id, entry.visionId));
+		}
 		return 'updated' as const;
 	});
 }

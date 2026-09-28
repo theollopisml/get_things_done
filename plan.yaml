@@ -87,7 +87,7 @@ slices:
       - description: "Classifier les captures du Collector après persistance avec échec récupérable et Retry"
         done: true
       - description: "Créer la Revue des classifications Jev avec confirmation et correction du type/rattachement"
-        done: false
+        done: true
       - description: "Masquer l'Inbox manuelle de la navigation et la rendre accessible depuis Revue"
         done: false
       - description: "Tester Jev simulé, idempotence, transactions, corrections, échecs et parcours UI"

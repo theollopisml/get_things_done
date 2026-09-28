@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Review Jev-classified captures in date order with their original text, type, parent, review state, and an unreviewed filter.
 - Confirm Jev classifications and correct Task or Project parent links from the Review, with eligible parent checks.
+- Correct a Jev classification's type transactionally while preserving its current title and description and refusing data-losing conversions.
 - Classify new Collector captures with Jev after saving them, with request-key deduplication, a short type confirmation, and a retry action when classification fails.
 - Bound Jev classification to Task, Project, and Vision, with optional links to eligible existing parents only when the relation decision is confident.
 - Add a server-only Jev Decisions API client with pinned model, response validation, timeout, and safe error codes.
@@ -39,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keep Review actions quiet until hover or keyboard focus, with a clear type-first editing panel that remains available on touch screens.
+- Open the Review on unreviewed classifications and offer one action to confirm every visible unreviewed capture.
 - Show the Collector as a compact input with one Capture action; keep manual classification in the fallback Inbox.
 - Acknowledge Collector captures as soon as they are saved, classify them in the server process, and show the type and optional Project or Vision link in a visible notification.
 - Preserve the original Entry and its Task, Project, or Vision link after manual classification, while showing only unclassified captures in the Inbox.

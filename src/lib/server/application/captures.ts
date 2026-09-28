@@ -8,6 +8,8 @@ import {
 	classifyEntry,
 	classifyCollectorManually,
 	confirmJevClassification,
+	confirmJevClassifications,
+	correctJevClassification,
 	correctJevRelation,
 	createClassified,
 	createEntry,
@@ -251,6 +253,12 @@ export async function confirmReview(id: unknown) {
 	return confirmJevClassification(entryId);
 }
 
+export async function confirmReviews(ids: unknown[]) {
+	const parsed = z.array(z.uuid()).safeParse(ids);
+	if (!parsed.success) throw new InvalidCapture('Captures invalides.');
+	return confirmJevClassifications([...new Set(parsed.data)]);
+}
+
 export async function correctReviewRelation(id: unknown, relationId: unknown) {
 	const entryId = parseEntryId(id);
 	const parentId = relationId === '' ? null : parseEntryId(relationId);
@@ -258,6 +266,15 @@ export async function correctReviewRelation(id: unknown, relationId: unknown) {
 		throw new InvalidCapture('Capture ou rattachement invalide.');
 	}
 	return correctJevRelation(entryId, parentId);
+}
+
+export async function correctReviewType(id: unknown, kind: unknown) {
+	const entryId = parseEntryId(id);
+	const selectedKind = classifyInput.safeParse(kind);
+	if (!entryId || !selectedKind.success) {
+		throw new InvalidCapture('Capture ou type invalide.');
+	}
+	return correctJevClassification(entryId, selectedKind.data);
 }
 
 export { deleteEntry, listEntries, listReviewParentOptions };

@@ -19,7 +19,8 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 		const { db } = await import('$lib/server/db');
 		const { checkpoints, entries, projects, tasks, visions } =
 			await import('$lib/server/db/schema');
-		const { confirmReview, correctReviewRelation } = await import('./captures');
+		const { confirmReview, confirmReviews, correctReviewRelation, correctReviewType } =
+			await import('./captures');
 		const { listJevReviewEntries } = await import('$lib/server/repositories/captures');
 		const { eq } = await import('drizzle-orm');
 		const classifiedAt = new Date();
@@ -102,6 +103,16 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 			expect(pending.some((entry) => entry.id === unreviewed.id)).toBe(true);
 			expect(pending.some((entry) => entry.id === reviewed.id)).toBe(false);
 			expect(await confirmReview(manual.id)).toBe(false);
+			expect(await correctReviewType(manual.id, 'task')).toBe('not_found');
+			await expect(confirmReviews(['invalid'])).rejects.toThrow('Captures invalides.');
+			expect(await confirmReviews([unreviewed.id, reviewed.id, manual.id, removed.id])).toBe(1);
+			expect(await confirmReviews([unreviewed.id, manual.id])).toBe(0);
+			expect(
+				(await db.select().from(entries).where(eq(entries.id, manual.id)))[0].reviewedAt
+			).toBeNull();
+			expect(
+				(await db.select().from(entries).where(eq(entries.id, removed.id)))[0].reviewedAt
+			).toBeNull();
 			expect(await confirmReview(unreviewed.id)).toBe(true);
 			expect(await confirmReview(unreviewed.id)).toBe(true);
 			expect((await listJevReviewEntries(true)).some((entry) => entry.id === unreviewed.id)).toBe(
@@ -139,6 +150,92 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 				await db.delete(projects).where(eq(projects.id, id));
 			}
 			await db.delete(visions).where(eq(visions.id, vision.id));
+		}
+	});
+
+	it('corrects Jev types without losing fields or children', async () => {
+		const { db } = await import('$lib/server/db');
+		const { entries, projects, tasks, visions } = await import('$lib/server/db/schema');
+		const { correctReviewType } = await import('./captures');
+		const { eq } = await import('drizzle-orm');
+		const [sourceTask] = await db
+			.insert(tasks)
+			.values({ title: 'Titre modifié', description: 'Description modifiée' })
+			.returning();
+		const [entry] = await db
+			.insert(entries)
+			.values({
+				rawContent: 'Texte capturé',
+				classificationState: 'classified',
+				classificationSource: 'jev',
+				classifiedAt: new Date(),
+				taskId: sourceTask.id
+			})
+			.returning();
+		let projectId: string | null = null;
+		let visionId: string | null = null;
+		let targetTaskId: string | null = null;
+		try {
+			expect(await correctReviewType(entry.id, 'task')).toBe('same_kind');
+			await db
+				.update(tasks)
+				.set({ scheduledDate: '2026-10-01' })
+				.where(eq(tasks.id, sourceTask.id));
+			expect(await correctReviewType(entry.id, 'project')).toBe('data_conflict');
+			expect((await db.select().from(entries).where(eq(entries.id, entry.id)))[0].taskId).toBe(
+				sourceTask.id
+			);
+			await db.update(tasks).set({ scheduledDate: null }).where(eq(tasks.id, sourceTask.id));
+			expect(await correctReviewType(entry.id, 'project')).toBe('updated');
+			const [asProject] = await db.select().from(entries).where(eq(entries.id, entry.id));
+			projectId = asProject.projectId;
+			expect(asProject).toMatchObject({ taskId: null, rawContent: 'Texte capturé' });
+			expect(asProject.reviewedAt).toBeInstanceOf(Date);
+			expect(
+				(await db.select().from(tasks).where(eq(tasks.id, sourceTask.id)))[0].deletedAt
+			).toBeInstanceOf(Date);
+			expect(
+				(await db.select().from(projects).where(eq(projects.id, projectId!)))[0]
+			).toMatchObject({
+				title: 'Titre modifié',
+				description: 'Description modifiée',
+				visionId: null
+			});
+
+			const [childTask] = await db.insert(tasks).values({ title: 'Enfant', projectId }).returning();
+			try {
+				expect(await correctReviewType(entry.id, 'vision')).toBe('children_conflict');
+			} finally {
+				await db.delete(tasks).where(eq(tasks.id, childTask.id));
+			}
+			await db.update(projects).set({ dueDate: '2026-10-01' }).where(eq(projects.id, projectId!));
+			expect(await correctReviewType(entry.id, 'vision')).toBe('data_conflict');
+			await db.update(projects).set({ dueDate: null }).where(eq(projects.id, projectId!));
+			expect(await correctReviewType(entry.id, 'vision')).toBe('updated');
+			const [asVision] = await db.select().from(entries).where(eq(entries.id, entry.id));
+			visionId = asVision.visionId;
+			expect(asVision.projectId).toBeNull();
+			expect(
+				(await db.select().from(projects).where(eq(projects.id, projectId!)))[0].deletedAt
+			).toBeInstanceOf(Date);
+
+			await db.update(visions).set({ status: 'paused' }).where(eq(visions.id, visionId!));
+			expect(await correctReviewType(entry.id, 'task')).toBe('data_conflict');
+			await db.update(visions).set({ status: 'active' }).where(eq(visions.id, visionId!));
+			expect(await correctReviewType(entry.id, 'task')).toBe('updated');
+			const [asTask] = await db.select().from(entries).where(eq(entries.id, entry.id));
+			targetTaskId = asTask.taskId;
+			expect(asTask.visionId).toBeNull();
+			expect((await db.select().from(tasks).where(eq(tasks.id, targetTaskId!)))[0]).toMatchObject({
+				title: 'Titre modifié',
+				description: 'Description modifiée'
+			});
+		} finally {
+			await db.delete(entries).where(eq(entries.id, entry.id));
+			if (targetTaskId) await db.delete(tasks).where(eq(tasks.id, targetTaskId));
+			await db.delete(tasks).where(eq(tasks.id, sourceTask.id));
+			if (projectId) await db.delete(projects).where(eq(projects.id, projectId));
+			if (visionId) await db.delete(visions).where(eq(visions.id, visionId));
 		}
 	});
 
