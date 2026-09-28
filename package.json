@@ -19,7 +19,7 @@
 		"lint": "prettier --check src vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml && eslint .",
 		"format": "prettier --write src vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml",
 		"test:unit": "vitest run --passWithNoTests",
-		"test:integration": "RUN_DB_TESTS=1 vitest run src/lib/server/application/captures.integration.test.ts src/lib/server/repositories/jev-candidates.integration.test.ts",
+		"test:integration": "RUN_DB_TESTS=1 vitest run src/lib/server/application/captures.integration.test.ts src/lib/server/repositories/jev-candidates.integration.test.ts 'src/routes/(app)/review/review.integration.test.ts'",
 		"test": "pnpm test:unit",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate"

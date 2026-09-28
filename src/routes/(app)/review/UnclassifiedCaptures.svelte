@@ -1,22 +1,23 @@
 <script lang="ts">
 	import { postAction } from '$lib/post-action';
+	import { invalidateAll } from '$app/navigation';
 	import type { ClassifiedKind } from '$lib/domain/capture';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
-	type Entry = PageData['entries'][number] & {
+	let { entries: initialEntries }: { entries: PageData['unclassified'] } = $props();
+	type Entry = PageData['unclassified'][number] & {
 		draft: string;
 		saved: string;
 		saving: boolean;
 		busy: boolean;
 		error: string;
 	};
-	// The Inbox keeps local drafts until a server action confirms each mutation.
+	// Keep local drafts until a server action confirms each mutation.
 	// svelte-ignore state_referenced_locally
 	let entries = $state<Entry[]>(
-		data.entries.map((entry) => ({
+		initialEntries.map((entry) => ({
 			...entry,
 			draft: entry.rawContent,
 			saved: entry.rawContent,
@@ -30,6 +31,8 @@
 	let message = $state('');
 	const timers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
 	const inFlight = new SvelteMap<string, Promise<boolean>>();
+	const statusTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+	let mounted = true;
 	let current = $derived(
 		entries
 			.filter((entry) => !skipped.includes(entry.id))
@@ -74,13 +77,14 @@
 		const snapshot = entry.draft;
 		entry.saving = true;
 		entry.error = '';
-		const request = postAction('/inbox?/update', form(entry.id, { rawContent: snapshot })).then(
-			(result) => {
-				if (result.ok) entry.saved = snapshot;
-				else entry.error = result.error || 'Sauvegarde impossible. Réessaie.';
-				return result.ok;
-			}
-		);
+		const request = postAction(
+			'/review?/updateUnclassified',
+			form(entry.id, { rawContent: snapshot })
+		).then((result) => {
+			if (result.ok) entry.saved = snapshot;
+			else entry.error = result.error || 'Sauvegarde impossible. Réessaie.';
+			return result.ok;
+		});
 		inFlight.set(entry.id, request);
 		const ok = await request;
 		inFlight.delete(entry.id);
@@ -97,7 +101,7 @@
 			return;
 		}
 		entry.error = '';
-		const result = await postAction('/inbox?/classify', form(entry.id, { kind }));
+		const result = await postAction('/review?/classifyUnclassified', form(entry.id, { kind }));
 		if (result.ok) {
 			clearTimeout(timers.get(entry.id));
 			entries = entries.filter((item) => item.id !== entry.id);
@@ -111,7 +115,7 @@
 		if (entry.busy) return;
 		entry.busy = true;
 		entry.error = '';
-		const result = await postAction('/inbox?/delete', form(entry.id, {}));
+		const result = await postAction('/review?/deleteUnclassified', form(entry.id, {}));
 		if (result.ok) {
 			clearTimeout(timers.get(entry.id));
 			entries = entries.filter((item) => item.id !== entry.id);
@@ -126,21 +130,62 @@
 		message = 'Capture laissée pour plus tard.';
 		await focusCurrent();
 	}
+
+	async function retry(entry: Entry) {
+		if (entry.busy) return;
+		entry.busy = true;
+		entry.error = '';
+		if (!(await save(entry))) {
+			entry.busy = false;
+			return;
+		}
+		const result = await postAction('/review?/retryUnclassified', form(entry.id, {}));
+		message = result.ok ? 'Classement relancé en arrière-plan.' : '';
+		if (!result.ok) entry.error = result.error || 'Relance impossible. Réessaie.';
+		else
+			statusTimers.set(
+				entry.id,
+				setTimeout(() => void pollStatus(entry), 1200)
+			);
+		entry.busy = false;
+	}
+
+	async function pollStatus(entry: Entry) {
+		if (!mounted) return;
+		const result = await postAction('/?/status', form(entry.id, {}));
+		if (!mounted) return;
+		if (result.ok && result.data?.status === 'classified') {
+			entries = entries.filter((item) => item.id !== entry.id);
+			message = 'Capture classée.';
+			await invalidateAll();
+			return;
+		}
+		if (result.ok && result.data?.status === 'failed') {
+			entry.error = 'Jev n’a pas pu classer cette capture. Tu peux réessayer ou choisir un type.';
+			return;
+		}
+		statusTimers.set(
+			entry.id,
+			setTimeout(() => void pollStatus(entry), 1500)
+		);
+	}
+
+	onDestroy(() => {
+		mounted = false;
+		for (const timer of timers.values()) clearTimeout(timer);
+		for (const timer of statusTimers.values()) clearTimeout(timer);
+	});
 </script>
 
-<svelte:head>
-	<title>Inbox · Get Things Done</title>
-</svelte:head>
-
-<div class="mx-auto max-w-4xl space-y-7">
+<div class="space-y-7">
 	<div class="flex flex-wrap items-end justify-between gap-4">
 		<div class="space-y-2">
 			<p class="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">
 				Captures à clarifier
 			</p>
-			<h1 class="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-				Inbox <span class="text-slate-400">{entries.length}</span>
-			</h1>
+			<h2 class="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+				Non classées <span class="text-slate-400">{entries.length}</span>
+			</h2>
 		</div>
 		{#if entries.length}
 			<button
@@ -151,7 +196,7 @@
 					skipped = [];
 				}}
 			>
-				{processing ? 'Voir la liste' : 'Process Inbox'}
+				{processing ? 'Voir la liste' : 'Traiter une par une'}
 			</button>
 		{/if}
 	</div>
@@ -160,11 +205,11 @@
 		<div
 			class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600"
 		>
-			L’Inbox est vide. Le Collector est prêt pour une nouvelle idée.
+			Aucune capture non classée.
 		</div>
 	{:else if processing && !current}
 		<div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
-			Session terminée. Les captures laissées pour plus tard restent dans l’Inbox.
+			Session terminée. Les captures laissées pour plus tard restent ici.
 		</div>
 	{:else}
 		<div class="space-y-4">
@@ -199,6 +244,12 @@
 						<button
 							type="button"
 							disabled={entry.busy}
+							class="ui-button ui-button-quiet ui-focus"
+							onclick={() => retry(entry)}>Réessayer Jev</button
+						>
+						<button
+							type="button"
+							disabled={entry.busy}
 							class="ui-button ui-button-primary ui-focus"
 							onclick={() => classify(entry, 'task')}>Task</button
 						>
@@ -217,18 +268,18 @@
 						{#if processing}<button
 								type="button"
 								class="ui-button ui-button-quiet ui-focus"
-								onclick={() => later(entry)}>Later</button
+								onclick={() => later(entry)}>Plus tard</button
 							>{/if}
 						<button
 							type="button"
 							disabled={entry.busy}
 							class="ui-button ui-button-quiet ui-focus text-red-700"
-							onclick={() => remove(entry)}>Delete</button
+							onclick={() => remove(entry)}>Supprimer</button
 						>
 						{#if entry.error && entry.draft !== entry.saved}<button
 								type="button"
 								class="ui-button ui-button-quiet ui-focus"
-								onclick={() => save(entry)}>Retry</button
+								onclick={() => save(entry)}>Réessayer</button
 							>{/if}
 					</div>
 				</article>

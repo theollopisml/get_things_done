@@ -77,7 +77,7 @@
 			);
 			timers.delete(id);
 		} else if (result.data?.status === 'failed') {
-			setNotice(id, 'Non classée · Inbox', 'failed');
+			setNotice(id, 'Non classée · Revue', 'failed');
 			timers.delete(id);
 		} else {
 			scheduleStatus(id);

@@ -4,22 +4,76 @@ import {
 	confirmReviews,
 	correctReviewRelation,
 	correctReviewType,
+	deleteEntry,
+	editEntry,
 	InvalidCapture,
+	listEntries,
+	parseEntryId,
+	processEntry,
+	queueJevClassification,
 	listReviewParentOptions
 } from '$lib/server/application/captures';
 import { listJevReviewEntries } from '$lib/server/repositories/captures';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ url }) => {
-	const onlyUnreviewed = url.searchParams.get('filter') !== 'all';
-	const [entries, parents] = await Promise.all([
+	const filter = url.searchParams.get('filter');
+	const onlyUnreviewed = filter !== 'all';
+	const [entries, parents, unclassified] = await Promise.all([
 		listJevReviewEntries(onlyUnreviewed),
-		listReviewParentOptions()
+		listReviewParentOptions(),
+		listEntries()
 	]);
-	return { onlyUnreviewed, entries, parents };
+	return { filter, onlyUnreviewed, entries, parents, unclassified };
 };
 
 export const actions = {
+	updateUnclassified: async ({ request }) => {
+		const form = await request.formData();
+		const id = parseEntryId(form.get('id'));
+		if (!id) return fail(400, { error: 'Capture invalide.' });
+		try {
+			if (!(await editEntry(id, form.get('rawContent'))))
+				return fail(404, { error: 'Capture introuvable.' });
+			return { saved: true };
+		} catch (error) {
+			if (error instanceof InvalidCapture) return fail(400, { error: error.message });
+			return fail(503, { error: 'Sauvegarde impossible. Réessaie.' });
+		}
+	},
+	classifyUnclassified: async ({ request }) => {
+		const form = await request.formData();
+		const id = parseEntryId(form.get('id'));
+		if (!id) return fail(400, { error: 'Capture invalide.' });
+		try {
+			if (!(await processEntry(id, form.get('kind'))))
+				return fail(404, { error: 'Capture introuvable.' });
+			return { saved: true };
+		} catch (error) {
+			if (error instanceof InvalidCapture) return fail(400, { error: error.message });
+			return fail(503, { error: 'Classification impossible. Réessaie.' });
+		}
+	},
+	retryUnclassified: async ({ request }) => {
+		const id = parseEntryId((await request.formData()).get('id'));
+		if (!id) return fail(400, { error: 'Capture invalide.' });
+		try {
+			if (!(await queueJevClassification(id))) return fail(404, { error: 'Capture introuvable.' });
+			return { saved: true };
+		} catch {
+			return fail(503, { error: 'Relance impossible. Réessaie.' });
+		}
+	},
+	deleteUnclassified: async ({ request }) => {
+		const id = parseEntryId((await request.formData()).get('id'));
+		if (!id) return fail(400, { error: 'Capture invalide.' });
+		try {
+			if (!(await deleteEntry(id))) return fail(404, { error: 'Capture introuvable.' });
+			return { saved: true };
+		} catch {
+			return fail(503, { error: 'Suppression impossible. Réessaie.' });
+		}
+	},
 	confirmAll: async ({ request }) => {
 		const form = await request.formData();
 		try {

@@ -85,7 +85,7 @@ Le contenu local saisi n'est jamais perdu sur échec. La confirmation de
 persistance de l'Entry autorise le vidage du Collector même si Jev échoue
 ensuite. Le navigateur suit séparément l'état du classement pour afficher
 une notification du type et du rattachement éventuel ; l'échec reste
-visible et relançable depuis le Collector ou l'Inbox de secours.
+visible et relançable depuis le Collector ou la section « Non classées » de Revue.
 
 ## 5. Validation et invariants
 
@@ -128,7 +128,7 @@ peuvent garder `NULL` ; aucune capture historique déjà supprimée lors
 d'une ancienne classification ne peut être reconstituée. Pas de
 `source_entry_id` sur les trois tables cibles.
 
-Les requêtes ordinaires de l'Inbox ne prennent que les Entries
+Les requêtes ordinaires de la section « Non classées » de Revue ne prennent que les Entries
 `pending|failed` non supprimées ; la Revue prend les Entries
 `classified` par Jev, y compris celles avec `reviewed_at`.
 
@@ -275,9 +275,9 @@ Lucide unique pour les icônes ; JetBrains Mono initialement global.
 Projects, Visions, New Task/Project/Vision, recherche. Pas de système de
 plugins.
 
-La navigation principale mène à `Revue`, qui expose un lien vers
-l'Inbox de secours. L'Inbox garde sa route et son traitement manuel mais
-pas d'accès direct dans la navigation principale.
+La navigation principale mène à `Revue`, qui expose un filtre « Non classées »
+quand une capture attend un classement. Le traitement manuel reste dans cette
+page ; aucune route Inbox distincte n'est conservée.
 
 ## 14. Auth et sécurité
 
@@ -298,8 +298,8 @@ PostgreSQL, migrations/transactions/use cases (`classifyEntry`,
 `correctJevClassification`, `retryJevClassification`,
 `deleteProject`, `restoreProject`, `moveTask`, `completeRecurringTask`,
 `searchGlobal`). Playwright : login, capture-\>Revue, correction de
-classification, échec Jev-\>Inbox de secours-\>Retry, Project+Task,
-Done, récurrence, Process Inbox, Cmd+K, smoke mobile.
+classification, échec Jev-\>section « Non classées » de Revue-\>Retry, Project+Task,
+Done, récurrence, traitement séquentiel des captures non classées, Cmd+K, smoke mobile.
 
 Les tests Jev en CI injectent un faux client : réponse valide, réponse
 invalide, erreur réseau, timeout, décision incertaine, IDs candidats
@@ -391,9 +391,8 @@ Vertical slices :
 1.  bootstrap repo/outillage/PostgreSQL/migrations ;
 2.  auth propriétaire + protection serveur ;
 3.  shell responsive/PWA/navigation ;
-4.  Collector + Entries + Inbox + Process Inbox ;
-    - slice `04a` : Jev sur les captures du Collector + Revue + Inbox de
-      secours ;
+4.  Collector + Entries + traitement des captures non classées dans Revue ;
+    - slice `04a` : Jev sur les captures du Collector + Revue avec traitement des captures non classées ;
 5.  Tasks ponctuelles + autosave + statuts + dates ;
 6.  Projects + relations Tasks + `TO_BUILD` ;
 7.  Checkpoints ;
@@ -480,9 +479,9 @@ marquée `failed` lors d'un contrôle de statut après 60 secondes et peut
 Collector conserve le texte et sa clé d'idempotence. Aucun cron, worker
 ou autre service de traitement n'est ajouté pour cette slice.
 
-Le choix manuel dans le Collector et `Process Inbox` créent l'objet et
-marquent l'Entry `classified` avec `classification_source=manual` dans
-une transaction ; ces Entries ne figurent pas dans la Revue Jev.
+Le traitement manuel des captures non classées dans Revue crée l'objet et
+marque l'Entry `classified` avec `classification_source=manual` dans
+une transaction ; ces Entries ne figurent pas parmi les classifications Jev.
 
 ### Correction
 

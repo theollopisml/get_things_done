@@ -56,7 +56,7 @@ slices:
         done: true
 
   - id: "04"
-    name: collector-inbox
+    name: collector-captures
     done: true
     tasks:
       - description: "Créer le modèle Entry"
@@ -65,18 +65,18 @@ slices:
         done: true
       - description: "Garantir la persistance avant vidage du Collector"
         done: true
-      - description: "Créer la liste Inbox"
+      - description: "Créer la liste des captures non classées"
         done: true
-      - description: "Créer Process Inbox avec Task/Project/Vision/Later/Delete"
+      - description: "Créer le traitement manuel séquentiel avec Task/Project/Vision/Plus tard/Supprimer"
         done: true
       - description: "Implémenter first-line -> title et reste -> description"
         done: true
 
   - id: "04a"
     name: jev-classification-review
-    done: false
+    done: true
     tasks:
-      - description: "Documenter le parcours classify-first, la Revue et l'Inbox de secours"
+      - description: "Documenter le parcours classify-first, la Revue et les captures non classées"
         done: true
       - description: "Faire évoluer Entry avec une migration pour garder la source, la cible et la clé d'idempotence"
         done: true
@@ -88,10 +88,10 @@ slices:
         done: true
       - description: "Créer la Revue des classifications Jev avec confirmation et correction du type/rattachement"
         done: true
-      - description: "Masquer l'Inbox manuelle de la navigation et la rendre accessible depuis Revue"
+      - description: "Supprimer la page Inbox et traiter les captures non classées dans Revue"
         done: true
       - description: "Tester Jev simulé, idempotence, transactions, corrections, échecs et parcours UI"
-        done: false
+        done: true
 
   - id: "05"
     name: tasks

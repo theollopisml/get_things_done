@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { postAction } from '$lib/post-action';
+	import UnclassifiedCaptures from './UnclassifiedCaptures.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -13,6 +14,7 @@
 	let unreviewedIds = $derived(
 		data.entries.filter((entry) => !entry.reviewedAt).map((entry) => entry.id)
 	);
+	let showUnclassified = $derived(data.filter === 'unclassified');
 
 	const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 	const kindLabels = { task: 'Task', project: 'Project', vision: 'Vision' } as const;
@@ -66,7 +68,7 @@
 			</p>
 			<h1 class="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Revue</h1>
 		</div>
-		{#if unreviewedIds.length}
+		{#if unreviewedIds.length && !showUnclassified}
 			<form method="POST" action="?/confirmAll" onsubmit={submitAll}>
 				{#each unreviewedIds as id (id)}<input type="hidden" name="ids" value={id} />{/each}
 				<button
@@ -85,26 +87,36 @@
 		<nav aria-label="Filtrer la revue" class="flex flex-wrap gap-2">
 			<a
 				href={resolve('/review')}
-				aria-current={data.onlyUnreviewed ? 'page' : undefined}
-				class="ui-button ui-focus {data.onlyUnreviewed ? 'ui-button-primary' : 'ui-button-quiet'}"
-				>À revoir</a
+				aria-current={data.onlyUnreviewed && !showUnclassified ? 'page' : undefined}
+				class="ui-button ui-focus {data.onlyUnreviewed && !showUnclassified
+					? 'ui-button-primary'
+					: 'ui-button-quiet'}">À revoir</a
 			>
 			<form method="GET" action={resolve('/review')}>
 				<button
 					type="submit"
 					name="filter"
 					value="all"
-					aria-pressed={!data.onlyUnreviewed}
-					class="ui-button ui-focus {!data.onlyUnreviewed
+					aria-pressed={!data.onlyUnreviewed && !showUnclassified}
+					class="ui-button ui-focus {!data.onlyUnreviewed && !showUnclassified
 						? 'ui-button-primary'
 						: 'ui-button-quiet'}">Toutes</button
 				>
 			</form>
+			{#if data.unclassified.length}
+				<a
+					href={resolve('/review?filter=unclassified')}
+					aria-current={showUnclassified ? 'page' : undefined}
+					class="ui-button ui-focus {showUnclassified ? 'ui-button-primary' : 'ui-button-quiet'}"
+					>Non classées ({data.unclassified.length})</a
+				>
+			{/if}
 		</nav>
-		<a href={resolve('/inbox')} class="ui-button ui-button-quiet ui-focus">Inbox de secours</a>
 	</div>
 
-	{#if !data.entries.length}
+	{#if showUnclassified}
+		<UnclassifiedCaptures entries={data.unclassified} />
+	{:else if !data.entries.length}
 		<div
 			class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600"
 		>
