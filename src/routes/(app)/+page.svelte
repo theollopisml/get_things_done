@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { postAction } from '$lib/post-action';
-	import type { CaptureKind } from '$lib/domain/capture';
 	import { onDestroy } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 
@@ -24,16 +23,15 @@
 		return null;
 	}
 
-	function classificationNotice(kind: unknown, relationTitle: unknown, manual = false) {
+	function classificationNotice(kind: unknown, relationTitle: unknown) {
 		const label = kindLabel(kind);
 		if (!label) return 'Capture classée';
-		const prefix = manual ? 'Créée en' : 'Classée en';
 		const parent = typeof relationTitle === 'string' && relationTitle.trim() ? relationTitle : null;
 		if (kind === 'task')
-			return `${prefix} ${label} · ${parent ? `Projet : ${parent}` : 'Sans projet'}`;
+			return `Classée en ${label} · ${parent ? `Projet : ${parent}` : 'Sans projet'}`;
 		if (kind === 'project')
-			return `${prefix} ${label} · ${parent ? `Vision : ${parent}` : 'Sans vision'}`;
-		return `${prefix} ${label}`;
+			return `Classée en ${label} · ${parent ? `Vision : ${parent}` : 'Sans vision'}`;
+		return `Classée en ${label}`;
 	}
 
 	function setNotice(id: string, message: string, state: Notice['state']) {
@@ -95,8 +93,6 @@
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (saving) return;
-		const submitter = event.submitter as HTMLButtonElement | null;
-		const kind = (submitter?.value || 'entry') as CaptureKind;
 		if (!content.trim()) {
 			error = 'Saisis une capture avant de l’enregistrer.';
 			return;
@@ -109,7 +105,7 @@
 		requestContent = submitted;
 		const data = new FormData();
 		data.set('rawContent', submitted);
-		data.set('kind', kind);
+		data.set('kind', 'entry');
 		data.set('requestId', key);
 		const result = await postAction('/?/capture', data);
 		if (result.ok) {
@@ -126,7 +122,7 @@
 				} else {
 					setNotice(
 						id,
-						classificationNotice(result.data?.kind, result.data?.relationTitle, kind !== 'entry'),
+						classificationNotice(result.data?.kind, result.data?.relationTitle),
 						'classified'
 					);
 				}
@@ -200,13 +196,10 @@
 	{/each}
 </div>
 
-<div class="mx-auto max-w-3xl space-y-8">
-	<div class="space-y-3">
+<div class="w-full max-w-5xl space-y-5">
+	<div class="space-y-2">
 		<p class="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">Capture rapide</p>
 		<h1 class="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Collector</h1>
-		<p class="text-sm leading-6 text-slate-600">
-			Dépose une idée ici. Jev la classera automatiquement ; tu pourras vérifier son choix ensuite.
-		</p>
 	</div>
 
 	<form
@@ -214,54 +207,31 @@
 		method="POST"
 		action="?/capture"
 		onsubmit={submit}
-		class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+		class="rounded-xl border border-slate-300 bg-white p-2"
 	>
 		<label for="capture" class="sr-only">Qu’est-ce qui te passe par la tête ?</label>
-		<textarea
-			id="capture"
-			name="rawContent"
-			bind:value={content}
-			onkeydown={onKeydown}
-			placeholder="Qu’est-ce qui te passe par la tête ?"
-			rows="6"
-			class="ui-focus w-full resize-y rounded-lg border border-slate-200 p-4 text-base leading-7 placeholder:text-slate-400"
-		></textarea>
-		<p class="mt-2 text-xs text-slate-500">
-			Entrée pour capturer · Maj + Entrée pour une nouvelle ligne
-		</p>
-		{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
-		<div class="mt-5 flex flex-wrap gap-2">
+		<div class="flex items-end gap-2">
+			<textarea
+				id="capture"
+				name="rawContent"
+				bind:value={content}
+				onkeydown={onKeydown}
+				placeholder="Qu’est-ce qui te passe par la tête ?"
+				rows="2"
+				class="ui-focus min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-2 py-1 text-base leading-6 placeholder:text-slate-400"
+			></textarea>
 			<button
 				bind:this={entryButton}
 				type="submit"
 				name="kind"
 				value="entry"
 				disabled={saving}
-				class="ui-button ui-button-primary ui-focus"
+				class="ui-button ui-button-primary ui-focus shrink-0"
 			>
-				{saving ? 'Enregistrement…' : 'Capturer avec Jev'}
+				{saving ? 'En cours…' : 'Capture'}
 			</button>
-			<button
-				type="submit"
-				name="kind"
-				value="task"
-				disabled={saving}
-				class="ui-button ui-button-quiet ui-focus">Task</button
-			>
-			<button
-				type="submit"
-				name="kind"
-				value="project"
-				disabled={saving}
-				class="ui-button ui-button-quiet ui-focus">Project</button
-			>
-			<button
-				type="submit"
-				name="kind"
-				value="vision"
-				disabled={saving}
-				class="ui-button ui-button-quiet ui-focus">Vision</button
-			>
 		</div>
+		{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
 	</form>
+	<p class="text-xs text-slate-500">Entrée pour capturer · Maj + Entrée pour une nouvelle ligne</p>
 </div>

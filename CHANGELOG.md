@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Classify new Collector captures with Jev after saving them, with request-key deduplication, a short type confirmation, and a retry action when classification fails.
 - Bound Jev classification to Task, Project, and Vision, with optional links to eligible existing parents only when the relation decision is confident.
 - Add a server-only Jev Decisions API client with pinned model, response validation, timeout, and safe error codes.
-- Capture ideas in a single multiline Collector field, with optional direct Task, Project, or Vision classification and retry on failed saves.
+- Capture ideas in a single multiline Collector field, with retry on failed saves.
 - Review and edit Inbox captures with autosave, then process them oldest first with Task, Project, Vision, Later, and Delete actions.
 - Persist classified captures transactionally with PostgreSQL models and validate Collector and Inbox actions with Zod.
 - Verify capture, editing, classification, and deletion against PostgreSQL in the integration suite.
@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Show the Collector as a compact input with one Capture action; keep manual classification in the fallback Inbox.
 - Acknowledge Collector captures as soon as they are saved, classify them in the server process, and show the type and optional Project or Vision link in a visible notification.
 - Preserve the original Entry and its Task, Project, or Vision link after manual classification, while showing only unclassified captures in the Inbox.
 - Add database constraints for Entry classification state, target, review metadata, probabilities, and unique capture request IDs.
