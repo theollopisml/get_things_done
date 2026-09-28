@@ -19,6 +19,7 @@
 		"lint": "prettier --check src vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml && eslint .",
 		"format": "prettier --write src vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml",
 		"test:unit": "vitest run --passWithNoTests",
+		"test:integration": "RUN_DB_TESTS=1 vitest run src/lib/server/application/captures.integration.test.ts",
 		"test": "pnpm test:unit",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate"
@@ -52,6 +53,7 @@
 		"better-auth": "^1.7.6",
 		"bits-ui": "^2.19.3",
 		"drizzle-orm": "^0.45.3",
-		"postgres": "^3.4.9"
+		"postgres": "^3.4.9",
+		"zod": "^4.6.5"
 	}
 }
