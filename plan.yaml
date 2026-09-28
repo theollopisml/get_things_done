@@ -72,6 +72,27 @@ slices:
       - description: "Implémenter first-line -> title et reste -> description"
         done: true
 
+  - id: "04a"
+    name: jev-classification-review
+    done: false
+    tasks:
+      - description: "Documenter le parcours classify-first, la Revue et l'Inbox de secours"
+        done: true
+      - description: "Faire évoluer Entry avec une migration pour garder la source, la cible et la clé d'idempotence"
+        done: false
+      - description: "Créer le client Jev server-only via OpenRouter et valider ses réponses"
+        done: false
+      - description: "Définir les choix bornés Task/Project/Vision et les rattachements facultatifs"
+        done: false
+      - description: "Classifier les captures du Collector après persistance avec échec récupérable et Retry"
+        done: false
+      - description: "Créer la Revue des classifications Jev avec confirmation et correction du type/rattachement"
+        done: false
+      - description: "Masquer l'Inbox manuelle de la navigation et la rendre accessible depuis Revue"
+        done: false
+      - description: "Tester Jev simulé, idempotence, transactions, corrections, échecs et parcours UI"
+        done: false
+
   - id: "05"
     name: tasks
     done: false

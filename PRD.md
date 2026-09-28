@@ -12,7 +12,7 @@ L’application est un gestionnaire personnel de tâches et de projets conçu po
 
 La boucle produit de référence est :
 
-> **Capture → Clarification → Organisation → Exécution → Accomplissement**
+> **Capture → Classification automatique → Revue facultative → Organisation → Exécution → Accomplissement**
 
 Le produit doit rester volontairement plus léger qu’un Jira, Notion ou gestionnaire de workflow complet. Il privilégie la vitesse, la faible friction, un modèle mental réduit et une interface minimaliste orientée développeur.
 
@@ -27,8 +27,9 @@ Dans un usage personnel, les outils de gestion de projet professionnels introdui
 Le produit doit permettre de :
 
 - capturer une idée ou une action en quelques secondes ;
-- conserver les captures non clarifiées dans une Inbox ;
-- transformer progressivement une capture en Task, Project ou Vision ;
+- classifier par défaut les captures en Task, Project ou Vision dès leur arrivée ;
+- revoir et corriger les classifications automatiques sans imposer une validation avant usage ;
+- conserver les captures non classifiées dans une Inbox de secours ;
 - gérer des tâches ponctuelles et des tâches récurrentes simples ;
 - structurer un projet avec des Tasks et des Checkpoints ;
 - voir immédiatement ce qui demande de l’attention aujourd’hui ;
@@ -44,15 +45,15 @@ Le produit doit permettre de :
 
 Aucune information autre que le contenu de la capture ne doit être obligatoire dans le Collector.
 
-L’utilisateur peut classifier immédiatement une capture s’il connaît déjà sa nature, mais cette classification est toujours optionnelle.
+Jev propose par défaut une classification après la persistance de la capture. L’utilisateur peut toujours choisir explicitement Task, Project ou Vision pour contourner Jev.
 
 ### 3.2 Classification immédiate, spécification progressive
 
-Une capture est considérée comme traitée dès qu’elle est classifiée.
+Une capture est utilisable dès que Jev l’a classifiée, sans attendre la revue humaine.
 
 Un objet classifié peut rester incomplet et être enrichi plus tard. Une Task, un Project ou une Vision ne doit pas exiger de description, date ou rattachement pour exister.
 
-La **classification** et la **spécification** sont deux décisions indépendantes : classifier suffit pour sortir de l’Inbox ; préciser le contexte, les dates ou les relations peut venir ensuite.
+La **classification** et la **spécification** sont deux décisions indépendantes. Un rattachement Project ou Vision proposé par Jev reste optionnel et corrigeable.
 
 ### 3.3 La structure aide, elle ne bloque pas
 
@@ -88,7 +89,8 @@ La V1 inclut :
 
 - authentification d’un unique propriétaire ;
 - Collector global ;
-- Inbox ;
+- classification automatique Jev depuis le Collector et revue des résultats ;
+- Inbox de secours pour les captures non classifiées ;
 - Tasks ;
 - Projects ;
 - Checkpoints ;
@@ -129,7 +131,7 @@ Sont explicitement exclus :
 - statuts supplémentaires de Task tels que `BLOCKED`, `ON_HOLD`, `BACKLOG` ou `REVIEW` ;
 - pièces jointes et uploads ;
 - moteur de workflow ;
-- conversion d’un type d’objet en un autre après classification ;
+- conversion générale d’un type d’objet en un autre hors correction d’une classification Jev ;
 - historique détaillé des transitions ;
 - historique d’occurrences des tâches récurrentes ;
 - moteur avancé de récurrence ;
@@ -142,7 +144,8 @@ Sont explicitement exclus :
 - pourcentage global de progression ;
 - éditeur rich-text propriétaire ;
 - analytics de productivité ;
-- intégrations externes.
+- import automatique de captures depuis une source externe au Collector ;
+- intégrations externes autres que Jev via OpenRouter.
 
 ---
 
@@ -180,9 +183,9 @@ Task → plusieurs Checkpoints❌
 
 ### 7.1 Entry
 
-Une `Entry` est une capture brute non encore clarifiée.
+Une `Entry` est la trace persistante d’un texte saisi dans le Collector, qu’il soit classifié par Jev ou manuellement. Elle conserve le texte original et le lien vers l’objet créé. Si la classification échoue, elle reste à traiter dans l’Inbox de secours.
 
-Elle n’est pas une catégorie métier durable : elle existe uniquement dans l’Inbox.
+Une Entry n’est pas une Task, un Project ou une Vision et ne remplace jamais ces objets métier.
 
 #### Données minimales
 
@@ -190,20 +193,27 @@ Elle n’est pas une catégorie métier durable : elle existe uniquement dans l�
 Entry
 ├── id
 ├── raw_content
+├── classification_state       // pending | failed | classified
+├── classification_source?     // jev | manual une fois classifiée
+├── classified_object?         // exactement un Task, Project ou Vision si classified
+├── classified_at?
+├── reviewed_at?
 ├── created_at
-└── updated_at
+├── updated_at
+└── deleted_at?
 ```
 
 #### Règles
 
-- aucune classification obligatoire à la capture ;
+- aucune décision de type obligatoire pour l’utilisateur à la capture ;
 - aucune date métier ;
-- aucune relation ;
-- aucune notion de statut ;
-- une Entry quitte l’Inbox dès qu’elle est classifiée ;
-- une Entry reste éditable avant classification, avec le même principe d’autosave que le reste de l’application ;
-- une Entry peut être supprimée directement ;
-- une Entry peut être laissée pour plus tard pendant une session de traitement sans modifier ses données.
+- `classification_state` décrit le traitement de la capture, sans être un statut de Task, Project ou Vision ;
+- une Entry classifiée automatiquement quitte l’Inbox de secours et reste visible dans la Revue, y compris après confirmation ;
+- une Entry non classifiée reste éditable avec autosave ;
+- la revue humaine n’est jamais un prérequis à l’utilisation de l’objet créé ;
+- une Entry non classifiée peut être supprimée directement ; la suppression d’un objet classifié suit les règles de Trash ;
+- une Entry en échec peut être relancée sans créer de doublon ;
+- une Entry non classifiée peut être laissée pour plus tard pendant une session de traitement sans modifier ses données.
 
 ---
 
@@ -479,31 +489,29 @@ Le Collector possède un unique champ principal.
 
 Aucun autre champ n’est obligatoire. Le champ accepte plusieurs lignes afin de pouvoir capturer un titre puis du contexte Markdown. La capture doit rester réalisable en une action clavier/tactile ; le raccourci exact est laissé au design, avec un moyen distinct d’insérer une nouvelle ligne.
 
-### 9.2 Capture brute
+### 9.2 Capture classifiée par Jev
 
-Si aucun type n’est choisi :
-
-```text
-capture
-→ Entry
-→ Inbox
-```
-
-Après succès, le champ est vidé, un feedback visuel très bref est donné et le focus reste prêt pour une nouvelle capture. Aucune modal ni navigation n’est imposée.
-
-### 9.3 Capture directement classifiée
-
-L’utilisateur peut choisir immédiatement :
+L’action primaire ne demande aucun type :
 
 ```text
-Task
-Project
-Vision
+capture → Entry persistée → Jev → Task | Project | Vision → Revue
 ```
 
-Dans ce cas, l’objet est créé directement et ne passe pas par l’Inbox.
+Jev choisit parmi ces trois types définis par l’application. Un résultat valide crée immédiatement l’objet métier, utilisable avant toute revue humaine. L’Entry conserve la capture d’origine, le type retenu et un lien vers cet objet ; la Revue montre toutes les classifications automatiques, confirmées ou non. Le texte de la capture est transmis à OpenRouter et TypeSafe pour cette décision.
 
-### 9.4 Transformation du contenu
+En cas d’échec de Jev ou de réponse invalide, l’Entry reste non classifiée. L’utilisateur peut relancer la classification ou la traiter manuellement depuis l’Inbox de secours.
+
+### 9.3 Rattachement facultatif
+
+Après avoir choisi `Task`, Jev peut proposer un Project **existant**. Après avoir choisi `Project`, il peut proposer une Vision **existante**. L’option « aucun rattachement » est toujours disponible. Jev ne crée jamais automatiquement un conteneur supplémentaire et ne rattache jamais directement une Task à une Vision ou un Checkpoint.
+
+Un rattachement incertain, invalide ou devenu indisponible laisse l’objet autonome. Une Task peut ainsi rester sans Project et un Project sans Vision. La Revue permet de corriger le rattachement.
+
+### 9.4 Choix manuel immédiat
+
+Un choix secondaire permet toujours de créer directement une Task, un Project ou une Vision sans appel à Jev. L’Entry correspondante garde la trace de la capture mais ne figure pas parmi les classifications automatiques à revoir.
+
+### 9.5 Transformation du contenu
 
 Règle universelle :
 
@@ -528,51 +536,53 @@ title = "Refaire mon CV"
 description_md = "Ajouter mon expérience actuelle.\nVérifier toutes les dates."
 ```
 
-Aucun parsing intelligent n’est effectué en V1.
+Aucun titre ni description n’est généré par Jev. La règle première ligne / reste du contenu s’applique à la capture automatique comme au choix manuel.
 
-### 9.5 Garantie de persistance
+### 9.6 Garantie de persistance
 
-Le champ du Collector ne doit être vidé qu’après confirmation de la persistance serveur.
+Le champ du Collector ne doit être vidé qu’après confirmation de la persistance de l’Entry ou de l’objet créé manuellement. Une erreur Jev après cette confirmation n’annule pas la capture : l’interface indique que l’Entry est enregistrée et propose `Réessayer` dans le parcours de secours.
 
-En cas d’échec réseau :
+Si la confirmation serveur n’arrive pas :
 
 - le texte reste affiché ;
 - un état d’erreur clair est présenté ;
 - une action `Retry` est disponible ;
-- aucune capture ne doit être perdue silencieusement.
+- une nouvelle tentative de la même capture ne crée aucun doublon.
+
+Après confirmation, le champ est vidé, un feedback bref est donné et le focus reste prêt pour une nouvelle capture. Aucune modal ni navigation n’est imposée.
 
 ---
 
-## 10. Inbox
+## 10. Revue et Inbox de secours
 
-L’Inbox contient uniquement les captures qui nécessitent encore une décision de classification.
+### 10.1 Revue des classifications automatiques
 
-### 10.1 Liste Inbox
+`Revue` est l’entrée de navigation principale. Elle affiche toutes les captures classifiées automatiquement par Jev, récentes en premier, avec le texte d’origine, le type et le rattachement retenus, ainsi que l’état « à revoir » ou « confirmé ». Les captures confirmées restent consultables. Un filtre permet de ne voir que celles à revoir.
 
-Par défaut, les entrées sont affichées de la plus récente à la plus ancienne afin de retrouver facilement une capture récente.
+Une classification Jev est appliquée avant confirmation humaine : la Revue sert à vérifier et corriger, pas à autoriser la création de l’objet.
 
-### 10.2 Process Inbox
+### 10.2 Confirmer et corriger
 
-Une action `Process Inbox` lance un flux séquentiel.
+Depuis la Revue, l’utilisateur peut :
 
-Ordre recommandé : plus ancien en premier.
+- confirmer la classification sans changer l’objet ;
+- corriger le type `Task` / `Project` / `Vision` proposé par Jev ;
+- corriger ou retirer le Project d’une Task, ou la Vision d’un Project ;
+- ouvrir l’objet créé pour l’enrichir dans sa page habituelle.
 
-Pour chaque Entry :
+Une correction de type remplace transactionnellement l’objet classifié automatiquement et met à jour le lien de l’Entry. Le texte, le titre et la description restent disponibles. Aucune relation enfant ni champ propre à l’ancien type n’est supprimé ou converti silencieusement : si une conversion ne peut pas préserver ces données, l’interface explique le conflit et demande de le résoudre d’abord. Les conversions générales hors de ce parcours restent exclues.
 
-```text
-[Task] [Project] [Vision] [Later] [Delete]
-```
+La confirmation renseigne `reviewed_at`. Une correction le renseigne également. La Revue indique clairement qu’une décision est automatique tant qu’elle n’a pas été confirmée ou corrigée.
 
-- `Task`, `Project`, `Vision` : classifient immédiatement puis passent à l’entrée suivante ;
-- après classification, l’interface peut proposer un enrichissement immédiat (détails, dates, rattachement), mais celui-ci est toujours optionnel et ne doit jamais bloquer le passage à l’entrée suivante ;
-- `Later` : ne modifie rien et passe seulement à la suivante pour cette session ;
-- `Delete` : supprime l’Entry.
+### 10.3 Inbox de secours
 
-La spécification complète n’est jamais obligatoire pendant ce flux.
+L’Inbox actuelle reste disponible depuis `Revue`, sans entrée dans la navigation principale. Elle contient uniquement les Entries non classifiées, y compris celles dont l’appel Jev a échoué. La liste est affichée de la plus récente à la plus ancienne. Une action `Réessayer avec Jev` est proposée pour les échecs.
 
-### 10.3 Checkpoints
+`Process Inbox` reste le traitement manuel séquentiel, le plus ancien en premier, avec `Task`, `Project`, `Vision`, `Later` et `Delete`. Classifier manuellement crée l’objet et retire l’Entry de l’Inbox de secours sans effacer la capture d’origine. `Later` ne modifie aucune donnée. Une Entry non classifiée reste éditable et supprimable.
 
-Un Checkpoint n’est jamais proposé comme classification dans l’Inbox.
+### 10.4 Checkpoints
+
+Un Checkpoint n’est jamais proposé comme classification par Jev ou dans l’Inbox de secours.
 
 ---
 
@@ -944,11 +954,14 @@ Filtres simples uniquement :
 
 Pas de vues sauvegardées ni de filtres avancés.
 
-### 17.3 Distinction Inbox / Unscheduled
+### 17.3 Distinction Inbox de secours / Revue / Unscheduled
 
 ```text
-Inbox
-= la nature de la capture n'est pas encore décidée
+Inbox de secours
+= la capture n'a pas encore d'objet classifié
+
+Revue
+= la capture a été classifiée automatiquement et peut être vérifiée
 
 Unscheduled
 = c'est bien une Task, mais aucune date d'exécution n'est définie
@@ -1273,16 +1286,18 @@ Navigation principale recommandée :
 
 ```text
 Collector / Home
-Inbox
+Revue
 Tasks
 Projects
 Visions
 Search
 ```
 
+L’Inbox de secours n’apparaît pas dans la navigation principale ; elle est accessible depuis la Revue pour les captures en attente ou en échec.
+
 Les Checkpoints sont accessibles uniquement à travers les Projects.
 
-La navigation peut exposer des badges de compte internes utiles (`Inbox`, `Late`, `Today`) afin de rendre l’état immédiatement visible, sans notification externe.
+La navigation peut exposer des badges de compte internes utiles (`Revue`, `Late`, `Today`) afin de rendre l’état immédiatement visible, sans notification externe.
 
 La Trash peut être accessible depuis un menu secondaire / settings et ne doit pas encombrer la navigation principale.
 
@@ -1442,11 +1457,14 @@ Support des navigateurs modernes uniquement.
 Home
 → saisir contenu
 → Enter
-→ persistence confirmée
-→ Entry créée
-→ Collector vidé
-→ Entry visible dans Inbox
+→ Entry persistée
+→ Jev classe en Task / Project / Vision
+→ objet créé et utilisable
+→ confirmation serveur, Collector vidé
+→ capture visible dans Revue pour vérification facultative
 ```
+
+Si Jev échoue après la persistance, l’Entry reste dans l’Inbox de secours avec `Réessayer avec Jev` ; la capture n’est pas perdue.
 
 ### 32.2 Capturer une Task connue
 
@@ -1454,20 +1472,29 @@ Home
 Home
 → saisir contenu
 → choisir Task
-→ persistence confirmée
+→ persistance confirmée
 → Task créée directement
-→ aucune Inbox
+→ aucun appel Jev ni passage en Revue
 ```
 
-### 32.3 Traiter l’Inbox
+### 32.3 Revoir ou corriger Jev
 
 ```text
-Inbox
+Revue
+→ voir le texte original, le type et le rattachement proposés
+→ confirmer ou corriger le type / rattachement
+→ l’objet reste utilisable, la capture reste consultable
+```
+
+Si Jev n’a pas classifié la capture :
+
+```text
+Revue → Inbox de secours
 → Process Inbox
 → Entry la plus ancienne
-→ choisir Task / Project / Vision
+→ Réessayer avec Jev ou choisir Task / Project / Vision
 → objet créé
-→ Entry retirée
+→ Entry retirée de l’Inbox de secours
 → suivante
 ```
 
@@ -1552,21 +1579,29 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 
 ### Collector
 
-- capturer une Entry depuis desktop ;
-- capturer une Entry depuis mobile ;
+- capturer et classifier automatiquement depuis desktop ;
+- capturer et classifier automatiquement depuis mobile ;
 - saisir une capture multi-ligne sans déclencher accidentellement l’envoi ;
 - aucune perte si la sauvegarde échoue ;
 - vider le Collector uniquement après confirmation de persistance ;
+- conserver l’Entry et proposer une relance si Jev échoue ;
+- éviter les doublons lors d’une nouvelle tentative de capture ;
 - créer directement une Task, un Project ou une Vision ;
 - appliquer correctement la règle première ligne / description.
 
-### Inbox
+### Revue et Inbox de secours
 
-- afficher toutes les Entries non classifiées, les plus récentes en premier dans la liste ;
+- afficher toutes les classifications Jev, y compris celles déjà confirmées, les plus récentes en premier ;
+- confirmer ou corriger le type et le rattachement depuis la Revue ;
+- ne jamais supprimer silencieusement des données lors d’une correction de type ;
+- laisser un rattachement vide si aucun Project ou Vision admissible n’est choisi avec assez de certitude ;
+- masquer l’Inbox de secours de la navigation principale tout en la laissant accessible depuis la Revue ;
+- afficher les Entries non classifiées, les plus récentes en premier dans l’Inbox de secours ;
 - éditer une Entry avant classification avec autosave ;
-- traiter séquentiellement l’Inbox, les plus anciennes en premier ;
+- relancer Jev sur une Entry en échec ;
+- traiter séquentiellement l’Inbox de secours, les plus anciennes en premier ;
 - classifier en Task, Project ou Vision ;
-- quitter l’Inbox dès la classification, sans exiger de spécification complète ;
+- quitter l’Inbox de secours dès la classification, sans exiger de spécification complète ;
 - utiliser `Later` sans mutation ;
 - supprimer une Entry.
 
@@ -1662,7 +1697,7 @@ La V1 est terminée lorsqu’elle peut servir pendant plusieurs semaines de gest
 L’utilisateur doit pouvoir :
 
 1. capturer depuis téléphone et desktop ;
-2. traiter l’Inbox ;
+2. vérifier les classifications Jev dans la Revue et traiter les éventuels échecs dans l’Inbox de secours ;
 3. créer et gérer Tasks, Projects, Visions et Checkpoints ;
 4. planifier des Tasks et des deadlines ;
 5. utiliser les Tasks récurrentes simples ;
@@ -1705,7 +1740,7 @@ Ces décisions ne doivent pas modifier le comportement produit défini ci-dessus
 
 À reconsidérer seulement si l’usage réel les justifie :
 
-- classification/spécification assistée par LLM après persistance de la capture, potentiellement de façon asynchrone avec un petit modèle ;
+- génération automatique de titres, descriptions, dates ou autres spécifications à partir de la capture ;
 - rappels et notifications ;
 - vrai mode offline ;
 - historique d’occurrences récurrentes ;
@@ -1724,20 +1759,23 @@ Ces décisions ne doivent pas modifier le comportement produit défini ci-dessus
 
 ---
 
-## 37. Registre consolidé des décisions de l’interview
+## 37. Registre consolidé des décisions produit
 
-Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spécifications détaillées ci-dessus ; elle récapitule les décisions explicitement verrouillées pendant l’interview afin d’éviter leur réintroduction accidentelle pendant l’architecture ou l’implémentation.
+Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spécifications détaillées ci-dessus ; elle récapitule les décisions produit, y compris celles ajoutées pour la slice Jev, afin d’éviter leur réintroduction accidentelle pendant l’architecture ou l’implémentation.
 
-### Capture et Inbox
+### Capture, Jev et Revue
 
-- boucle de référence : `Capture → Clarification → Organisation → Exécution → Accomplissement` ;
+- boucle de référence : `Capture → Classification automatique → Revue facultative → Organisation → Exécution → Accomplissement` ;
 - seul le contenu est obligatoire à la capture ;
-- une capture non typée devient une `Entry` dans l’Inbox ;
-- classifier suffit à sortir de l’Inbox ; la spécification est progressive ;
+- une capture du Collector devient une Entry persistée avant l’appel à Jev ;
+- Jev classifie en Task, Project ou Vision sans attendre une confirmation humaine ;
+- les classifications Jev restent visibles dans la Revue, même après confirmation ;
+- une capture non classifiée ou en échec reste dans l’Inbox de secours ;
+- la spécification est progressive, le rattachement automatique est facultatif ;
 - classifications disponibles : `Task`, `Project`, `Vision` uniquement ;
-- `Checkpoint` n’est jamais une classification du Collector/Inbox ;
+- `Checkpoint` n’est jamais une classification du Collector ou de Jev ;
 - `Later` ne crée ni statut, ni date, ni snooze ;
-- aucune conversion de type après classification.
+- la correction d’une classification Jev peut changer le type depuis la Revue, sans perte silencieuse de données ; les autres conversions restent exclues.
 
 ### Modèle métier
 
@@ -1782,7 +1820,7 @@ Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spéc
 ### Interface et fiabilité
 
 - Home = Collector + `Late / In Progress / Today`, pas un dashboard général ;
-- `Tasks` = backlog global, `Inbox` = captures non clarifiées ;
+- `Tasks` = backlog global, `Revue` = classifications Jev, `Inbox de secours` = captures non classifiées ;
 - pas de page Overview V1 ;
 - recherche globale simple sur titres + descriptions ;
 - Markdown commun à tous les objets structurés, checkboxes interactives mais sans logique métier ;
