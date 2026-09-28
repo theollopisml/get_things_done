@@ -95,7 +95,7 @@ slices:
 
   - id: "05"
     name: tasks
-    done: false
+    done: true
     tasks:
       - description: "Créer le modèle Task et ses contraintes"
         done: true
@@ -108,7 +108,7 @@ slices:
       - description: "Ajouter les actions rapides et Undo"
         done: true
       - description: "Ajouter autosave et gestion des erreurs"
-        done: false
+        done: true
 
   - id: "06"
     name: projects

@@ -1,22 +1,24 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { taskGroup, type TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
+	import TaskCard from './TaskCard.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	let newTitle = $state('');
 	let creating = $state(false);
 	let error = $state('');
-	let busy = $state(false);
-	let undo = $state<{ id: string; status: TaskStatus; label: string } | null>(null);
-	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 	let filter = $state('all');
 	let projectFilter = $state('all');
+	let undo = $state<{ id: string; status: TaskStatus; label: string } | null>(null);
+	let busy = $state(false);
+	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 	let today = new Date().toLocaleDateString('sv-SE');
 	let nowTime = new Date().toTimeString().slice(0, 5);
+	let clockTimer: ReturnType<typeof setInterval> | undefined;
 	let projectOptions = $derived(
 		data.tasks
 			.filter((task) => task.projectId)
@@ -41,14 +43,18 @@
 		{ key: 'unscheduled', label: 'Unscheduled' }
 	] as const;
 
+	function form(values: Record<string, string>) {
+		const data = new FormData();
+		for (const [key, value] of Object.entries(values)) data.set(key, value);
+		return data;
+	}
+
 	async function create(event: SubmitEvent) {
 		event.preventDefault();
 		if (creating) return;
 		creating = true;
 		error = '';
-		const form = new FormData();
-		form.set('title', newTitle);
-		const result = await postAction('/tasks?/create', form);
+		const result = await postAction('/tasks?/create', form({ title: newTitle }));
 		if (result.ok) {
 			newTitle = '';
 			await invalidateAll();
@@ -56,46 +62,58 @@
 		creating = false;
 	}
 
-	async function changeStatus(id: string, status: TaskStatus, isUndo = false) {
-		if (busy) return;
+	async function changeStatus(
+		id: string,
+		status: TaskStatus,
+		previous: TaskStatus,
+		isUndo = false
+	) {
+		if (busy) return false;
 		busy = true;
 		error = '';
-		const form = new FormData();
-		form.set('id', id);
-		form.set('status', status);
-		const result = await postAction('/tasks?/status', form);
+		const result = await postAction('/tasks?/status', form({ id, status }));
 		if (result.ok) {
 			if (isUndo) undo = null;
 			else {
-				const previous = result.data?.previousStatus;
-				if (
-					previous === 'todo' ||
-					previous === 'in_progress' ||
-					previous === 'done' ||
-					previous === 'cancelled'
-				) {
-					undo = {
-						id,
-						status: previous,
-						label:
-							status === 'done'
-								? 'Task terminée.'
-								: status === 'cancelled'
-									? 'Task annulée.'
-									: status === 'in_progress'
-										? 'Task démarrée.'
-										: 'Task rouverte.'
-					};
-					clearTimeout(undoTimer);
-					undoTimer = setTimeout(() => (undo = null), 8000);
-				}
+				const serverPrevious = result.data?.previousStatus;
+				const undoStatus =
+					serverPrevious === 'todo' ||
+					serverPrevious === 'in_progress' ||
+					serverPrevious === 'done' ||
+					serverPrevious === 'cancelled'
+						? serverPrevious
+						: previous;
+				undo = {
+					id,
+					status: undoStatus,
+					label:
+						status === 'done'
+							? 'Task terminée.'
+							: status === 'cancelled'
+								? 'Task annulée.'
+								: status === 'in_progress'
+									? 'Task démarrée.'
+									: 'Task rouverte.'
+				};
+				clearTimeout(undoTimer);
+				undoTimer = setTimeout(() => (undo = null), 8000);
 			}
 			await invalidateAll();
 		} else error = result.error || 'Action impossible. Réessaie.';
 		busy = false;
+		return result.ok;
 	}
 
-	onDestroy(() => clearTimeout(undoTimer));
+	onMount(() => {
+		clockTimer = setInterval(() => {
+			today = new Date().toLocaleDateString('sv-SE');
+			nowTime = new Date().toTimeString().slice(0, 5);
+		}, 60_000);
+	});
+	onDestroy(() => {
+		clearTimeout(undoTimer);
+		clearInterval(clockTimer);
+	});
 </script>
 
 <svelte:head><title>Tasks · Get Things Done</title></svelte:head>
@@ -121,6 +139,7 @@
 			>
 		</nav>
 	</header>
+
 	{#if !data.history}
 		<form
 			onsubmit={create}
@@ -148,33 +167,37 @@
 			<span>{undo.label}</span><button
 				type="button"
 				class="ui-button ui-button-quiet ui-focus"
-				onclick={() => undo && changeStatus(undo.id, undo.status, true)}>Annuler l’action</button
+				onclick={() => undo && changeStatus(undo.id, undo.status, undo.status, true)}
+				>Annuler l’action</button
 			>
 		</div>{/if}
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
 	{#if !data.history}
 		<div class="flex flex-wrap gap-4">
 			<label class="flex items-center gap-2 text-sm text-slate-700"
-				>Filtrer<select
+				>Filtrer
+				<select
 					bind:value={filter}
 					class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-					><option value="all">Toutes</option><option value="todo">À faire</option><option
+				>
+					<option value="all">Toutes</option><option value="todo">À faire</option><option
 						value="in_progress">En cours</option
 					><option value="scheduled">Planifiées</option><option value="unscheduled"
 						>Sans planification</option
-					></select
-				></label
-			>
-			<label class="flex items-center gap-2 text-sm text-slate-700"
-				>Projet<select
+					>
+				</select>
+			</label><label class="flex items-center gap-2 text-sm text-slate-700"
+				>Projet
+				<select
 					bind:value={projectFilter}
 					class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-					><option value="all">Tous</option
-					>{#each projectOptions as project (project.projectId)}<option
+				>
+					<option value="all">Tous</option>
+					{#each projectOptions as project (project.projectId)}<option
 							value={project.projectId ?? ''}>{project.projectTitle}</option
-						>{/each}</select
-				></label
-			>
+						>{/each}
+				</select>
+			</label>
 		</div>
 	{/if}
 	{#if !visible.length}
@@ -193,45 +216,7 @@
 					<h2 class="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
 						{group.label} <span class="text-slate-400">{items.length}</span>
 					</h2>
-					{#each items as task (task.id)}
-						<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-							<div class="flex flex-wrap items-start justify-between gap-3">
-								<h3 class="font-semibold break-words text-slate-950">{task.title}</h3>
-								<div class="flex flex-wrap gap-2">
-									{#if task.status === 'todo' || task.status === 'in_progress'}
-										<button
-											type="button"
-											disabled={busy}
-											onclick={() => changeStatus(task.id, 'done')}
-											class="ui-button ui-button-primary ui-focus">Terminer</button
-										>
-										{#if task.status === 'todo'}<button
-												type="button"
-												disabled={busy}
-												onclick={() => changeStatus(task.id, 'in_progress')}
-												class="ui-button ui-button-quiet ui-focus">Démarrer</button
-											>{/if}
-										<button
-											type="button"
-											disabled={busy}
-											onclick={() => changeStatus(task.id, 'cancelled')}
-											class="ui-button ui-button-quiet ui-focus">Annuler</button
-										>
-									{:else}<button
-											type="button"
-											disabled={busy}
-											onclick={() => changeStatus(task.id, 'todo')}
-											class="ui-button ui-button-quiet ui-focus">Rouvrir</button
-										>{/if}
-								</div>
-							</div>
-							<p class="mt-1 text-xs text-slate-500">
-								{task.projectTitle ? `${task.projectTitle} · ` : ''}{task.scheduledDate
-									? `Planifiée ${task.scheduledDate} · `
-									: ''}{task.dueDate ? `Échéance ${task.dueDate}` : ''}
-							</p>
-						</article>
-					{/each}
+					{#each items as task (task.id)}<TaskCard {task} onStatus={changeStatus} />{/each}
 				</section>
 			{/if}
 		{/each}
