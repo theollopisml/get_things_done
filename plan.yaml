@@ -98,11 +98,11 @@ slices:
     done: false
     tasks:
       - description: "Créer le modèle Task et ses contraintes"
-        done: false
+        done: true
       - description: "Implémenter TODO/IN_PROGRESS/DONE/CANCELLED"
-        done: false
+        done: true
       - description: "Implémenter scheduled date/time et due date/time"
-        done: false
+        done: true
       - description: "Créer la page Tasks"
         done: false
       - description: "Ajouter les actions rapides et Undo"

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Persist one-off Task status transitions, scheduling dates, optional times, and closure metadata with validation and PostgreSQL tests.
 - Review Jev-classified captures in date order with their original text, type, parent, review state, and an unreviewed filter.
 - Confirm Jev classifications and correct Task or Project parent links from the Review, with eligible parent checks.
 - Correct a Jev classification's type transactionally while preserving its current title and description and refusing data-losing conversions.
