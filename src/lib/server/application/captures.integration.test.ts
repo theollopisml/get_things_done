@@ -2,6 +2,14 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { ChoiceResult } from '$lib/server/jev/client';
 
 describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with PostgreSQL', () => {
+	async function waitForStatus(id: string, status: 'classified' | 'failed') {
+		const { getCollectorClassificationStatus } = await import('./captures');
+		await vi.waitFor(
+			async () => expect((await getCollectorClassificationStatus(id))?.status).toBe(status),
+			{ timeout: 3000, interval: 20 }
+		);
+	}
+
 	afterAll(async () => {
 		const { client } = await import('$lib/server/db');
 		await client.end();
@@ -133,10 +141,11 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 				jevKey,
 				dependencies
 			);
+			expect(first).toMatchObject({ status: 'saved_pending_classification' });
+			expect(replay.entryId).toBe(first.entryId);
+			await waitForStatus(first.entryId, 'classified');
 			const retry = await retryJevClassification(first.entryId, dependencies);
-			expect(first).toMatchObject({ status: 'saved_and_classified' });
-			expect(replay).toEqual(first);
-			expect(retry).toEqual(first);
+			expect(retry).toMatchObject({ status: 'saved_and_classified', entryId: first.entryId });
 			expect(choose).toHaveBeenCalledOnce();
 			const [entry] = await db.select().from(entries).where(eq(entries.captureRequestId, jevKey));
 			expect(entry).toMatchObject({
@@ -177,7 +186,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 	it('keeps a failed Entry for retry and creates one object under concurrent requests', async () => {
 		const { db } = await import('$lib/server/db');
 		const { entries, tasks } = await import('$lib/server/db/schema');
-		const { submitCollectorCapture, retryJevClassification } = await import('./captures');
+		const { submitCollectorCapture, queueJevClassification } = await import('./captures');
 		const { JevError } = await import('$lib/server/jev/client');
 		const { eq } = await import('drizzle-orm');
 		const key = crypto.randomUUID();
@@ -200,18 +209,20 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 				client: failedClient,
 				loadCandidates
 			});
-			expect(failed.status).toBe('saved_pending_retry');
+			expect(failed.status).toBe('saved_pending_classification');
+			await waitForStatus(failed.entryId, 'failed');
 			const [saved] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
 			expect(saved).toMatchObject({ id: failed.entryId, classificationState: 'failed' });
 			const [retry, concurrent] = await Promise.all([
-				retryJevClassification(failed.entryId, { client: successfulClient, loadCandidates }),
+				queueJevClassification(failed.entryId, { client: successfulClient, loadCandidates }),
 				submitCollectorCapture('Tâche à sauver', 'entry', key, {
 					client: successfulClient,
 					loadCandidates
 				})
 			]);
-			expect(retry).toMatchObject({ status: 'saved_and_classified', entryId: failed.entryId });
-			expect(concurrent).toMatchObject({ status: 'saved_and_classified', entryId: failed.entryId });
+			expect(retry?.entryId).toBe(failed.entryId);
+			expect(concurrent.entryId).toBe(failed.entryId);
+			await waitForStatus(failed.entryId, 'classified');
 			const [classified] = await db.select().from(entries).where(eq(entries.id, failed.entryId));
 			expect(classified).toMatchObject({
 				classificationState: 'classified',
@@ -225,6 +236,41 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 			if (entry) {
 				await db.delete(entries).where(eq(entries.id, entry.id));
 				if (entry.taskId) await db.delete(tasks).where(eq(tasks.id, entry.taskId));
+			}
+		}
+	});
+
+	it('returns after persistence while Jev is still deciding', async () => {
+		const { db } = await import('$lib/server/db');
+		const { entries, visions } = await import('$lib/server/db/schema');
+		const { submitCollectorCapture } = await import('./captures');
+		const { eq } = await import('drizzle-orm');
+		const key = crypto.randomUUID();
+		let finish: ((value: ChoiceResult) => void) | undefined;
+		const client = {
+			choose: () =>
+				new Promise<ChoiceResult>((resolve) => {
+					finish = resolve;
+				})
+		};
+		try {
+			const result = await submitCollectorCapture('Direction durable', 'entry', key, { client });
+			expect(result.status).toBe('saved_pending_classification');
+			const [saved] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
+			expect(saved).toMatchObject({ id: result.entryId, classificationState: 'pending' });
+			await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+			finish!({
+				choice: 'vision',
+				probabilities: { task: 0, project: 0, vision: 1 },
+				confidence: 1,
+				model: 'typesafe/jev-1.13'
+			});
+			await waitForStatus(result.entryId, 'classified');
+		} finally {
+			const [entry] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
+			if (entry) {
+				await db.delete(entries).where(eq(entries.id, entry.id));
+				if (entry.visionId) await db.delete(visions).where(eq(visions.id, entry.visionId));
 			}
 		}
 	});
@@ -265,11 +311,14 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 				client,
 				loadCandidates: async () => [{ id: parent.id, title: 'Parent temporaire' }]
 			});
-			expect(result.status).toBe('saved_and_classified');
+			expect(result.status).toBe('saved_pending_classification');
+			await waitForStatus(result.entryId, 'classified');
 			expect(calls).toBe(2);
 			const [entry] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
 			const [task] = await db.select().from(tasks).where(eq(tasks.id, entry.taskId!));
 			expect(task.projectId).toBeNull();
+			const { getCollectorClassificationStatus } = await import('./captures');
+			expect((await getCollectorClassificationStatus(result.entryId))?.relationTitle).toBeNull();
 		} finally {
 			const [entry] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
 			if (entry) {
@@ -277,6 +326,93 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 				if (entry.taskId) await db.delete(tasks).where(eq(tasks.id, entry.taskId));
 			}
 			await db.delete(projects).where(eq(projects.id, parent.id));
+		}
+	});
+
+	it('reports the saved Project or Vision attachment in the Collector status', async () => {
+		const { db } = await import('$lib/server/db');
+		const { entries, projects, tasks, visions } = await import('$lib/server/db/schema');
+		const { getCollectorClassificationStatus, submitCollectorCapture } = await import('./captures');
+		const { eq } = await import('drizzle-orm');
+		const taskKey = crypto.randomUUID();
+		const projectKey = crypto.randomUUID();
+		const [vision] = await db
+			.insert(visions)
+			.values({ title: 'Vision créative' })
+			.returning({ id: visions.id });
+		const [parentProject] = await db
+			.insert(projects)
+			.values({ title: 'Portfolio', status: 'active' })
+			.returning({ id: projects.id });
+		const taskClient = {
+			choose: async ({ criteria }: { criteria: Record<string, string> }): Promise<ChoiceResult> =>
+				'task' in criteria
+					? {
+							choice: 'task',
+							probabilities: { task: 1, project: 0, vision: 0 },
+							confidence: 1,
+							model: 'typesafe/jev-1.13'
+						}
+					: {
+							choice: parentProject.id,
+							probabilities: { none: 0.01, [parentProject.id]: 0.99 },
+							confidence: 0.99,
+							model: 'typesafe/jev-1.13'
+						}
+		};
+		const projectClient = {
+			choose: async ({ criteria }: { criteria: Record<string, string> }): Promise<ChoiceResult> =>
+				'project' in criteria
+					? {
+							choice: 'project',
+							probabilities: { task: 0, project: 1, vision: 0 },
+							confidence: 1,
+							model: 'typesafe/jev-1.13'
+						}
+					: {
+							choice: vision.id,
+							probabilities: { none: 0.01, [vision.id]: 0.99 },
+							confidence: 0.99,
+							model: 'typesafe/jev-1.13'
+						}
+		};
+		try {
+			const taskCapture = await submitCollectorCapture('Corriger le portfolio', 'entry', taskKey, {
+				client: taskClient,
+				loadCandidates: async () => [{ id: parentProject.id, title: 'Portfolio' }]
+			});
+			await waitForStatus(taskCapture.entryId, 'classified');
+			expect(await getCollectorClassificationStatus(taskCapture.entryId)).toMatchObject({
+				status: 'classified',
+				kind: 'task',
+				relationTitle: 'Portfolio'
+			});
+
+			const projectCapture = await submitCollectorCapture(
+				'Publier mes dessins',
+				'entry',
+				projectKey,
+				{
+					client: projectClient,
+					loadCandidates: async () => [{ id: vision.id, title: 'Vision créative' }]
+				}
+			);
+			await waitForStatus(projectCapture.entryId, 'classified');
+			expect(await getCollectorClassificationStatus(projectCapture.entryId)).toMatchObject({
+				status: 'classified',
+				kind: 'project',
+				relationTitle: 'Vision créative'
+			});
+		} finally {
+			for (const key of [taskKey, projectKey]) {
+				const [entry] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
+				if (!entry) continue;
+				await db.delete(entries).where(eq(entries.id, entry.id));
+				if (entry.taskId) await db.delete(tasks).where(eq(tasks.id, entry.taskId));
+				if (entry.projectId) await db.delete(projects).where(eq(projects.id, entry.projectId));
+			}
+			await db.delete(projects).where(eq(projects.id, parentProject.id));
+			await db.delete(visions).where(eq(visions.id, vision.id));
 		}
 	});
 
@@ -304,7 +440,8 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture and Inbox with Postgre
 		};
 		try {
 			const first = await submitCollectorCapture('Texte initial', 'entry', key, { client });
-			expect(first.status).toBe('saved_pending_retry');
+			expect(first.status).toBe('saved_pending_classification');
+			await waitForStatus(first.entryId, 'failed');
 			const [saved] = await db.select().from(entries).where(eq(entries.captureRequestId, key));
 			expect(saved).toMatchObject({ rawContent: 'Texte modifié', classificationState: 'failed' });
 			expect(saved.visionId).toBeNull();

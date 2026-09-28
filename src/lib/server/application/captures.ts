@@ -11,6 +11,7 @@ import {
 	createEntry,
 	deleteEntry,
 	getCaptureEntry,
+	getClassifiedRelationTitle,
 	getOrCreateCaptureEntry,
 	listEntries,
 	markJevFailed,
@@ -48,6 +49,8 @@ type JevDependencies = {
 	loadCandidates?: typeof listEligibleRelationCandidates;
 };
 
+const activeClassifications = new Set<string>();
+
 function linkedKind(entry: {
 	taskId: string | null;
 	projectId: string | null;
@@ -76,14 +79,88 @@ export async function submitCollectorCapture(
 		throw new InvalidCapture('Cette clé appartient à une autre capture.');
 	}
 	if (entry.classificationState === 'classified') {
-		return { status: 'saved_and_classified' as const, entryId: entry.id, kind: linkedKind(entry) };
+		return {
+			status: 'saved_and_classified' as const,
+			entryId: entry.id,
+			kind: linkedKind(entry),
+			relationTitle: await getClassifiedRelationTitle(entry)
+		};
 	}
 	if (selectedKind !== 'entry') {
 		const classified = await classifyCollectorManually(entry.id, text, selectedKind);
 		if (!classified) throw new InvalidCapture('Capture indisponible.');
-		return { status: 'saved_and_classified' as const, entryId: entry.id, kind: classified };
+		return {
+			status: 'saved_and_classified' as const,
+			entryId: entry.id,
+			kind: classified,
+			relationTitle: null
+		};
 	}
-	return classifyWithJev(entry.id, text, dependencies);
+	scheduleJevClassification(entry.id, text, dependencies);
+	return { status: 'saved_pending_classification' as const, entryId: entry.id };
+}
+
+export async function queueJevClassification(id: unknown, dependencies: JevDependencies = {}) {
+	const entryId = parseEntryId(id);
+	if (!entryId) throw new InvalidCapture('Capture invalide.');
+	const entry = await getCaptureEntry(entryId);
+	if (!entry) return null;
+	if (entry.classificationState === 'classified') {
+		return {
+			status: 'saved_and_classified' as const,
+			entryId,
+			kind: linkedKind(entry),
+			relationTitle: await getClassifiedRelationTitle(entry)
+		};
+	}
+	scheduleJevClassification(entryId, entry.rawContent, dependencies);
+	return { status: 'saved_pending_classification' as const, entryId };
+}
+
+export async function getCollectorClassificationStatus(id: unknown) {
+	const entryId = parseEntryId(id);
+	if (!entryId) throw new InvalidCapture('Capture invalide.');
+	let entry = await getCaptureEntry(entryId);
+	if (!entry) return null;
+	if (
+		entry.classificationState === 'pending' &&
+		!activeClassifications.has(entryId) &&
+		Date.now() - entry.updatedAt.getTime() > 60_000
+	) {
+		await markJevFailed(entryId);
+		entry = await getCaptureEntry(entryId);
+		if (!entry) return null;
+	}
+	return {
+		status: entry.classificationState,
+		kind: entry.classificationState === 'classified' ? linkedKind(entry) : null,
+		relationTitle:
+			entry.classificationState === 'classified' ? await getClassifiedRelationTitle(entry) : null
+	};
+}
+
+function scheduleJevClassification(id: string, rawContent: string, dependencies: JevDependencies) {
+	if (activeClassifications.has(id)) return;
+	activeClassifications.add(id);
+	setImmediate(() => {
+		void classifyWithJev(id, rawContent, dependencies)
+			.catch(async () => {
+				try {
+					await markJevFailed(id);
+				} catch {
+					// The persisted Entry remains available for a later retry.
+				}
+				console.error(
+					JSON.stringify({
+						event: 'jev_classification',
+						entryId: id,
+						model: JEV_MODEL,
+						code: 'internal'
+					})
+				);
+			})
+			.finally(() => activeClassifications.delete(id));
+	});
 }
 
 export async function retryJevClassification(id: unknown, dependencies: JevDependencies = {}) {

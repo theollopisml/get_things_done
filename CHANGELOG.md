@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Acknowledge Collector captures as soon as they are saved, classify them in the server process, and show the type and optional Project or Vision link in a visible notification.
 - Preserve the original Entry and its Task, Project, or Vision link after manual classification, while showing only unclassified captures in the Inbox.
 - Add database constraints for Entry classification state, target, review metadata, probabilities, and unique capture request IDs.
 - Start local PostgreSQL automatically before `pnpm dev`, with `pnpm dev:app` for an existing database.

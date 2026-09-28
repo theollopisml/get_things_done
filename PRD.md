@@ -499,6 +499,8 @@ capture → Entry persistée → Jev → Task | Project | Vision → Revue
 
 Jev choisit parmi ces trois types définis par l’application. Un résultat valide crée immédiatement l’objet métier, utilisable avant toute revue humaine. L’Entry conserve la capture d’origine, le type retenu et un lien vers cet objet ; la Revue montre toutes les classifications automatiques, confirmées ou non. Le texte de la capture est transmis à OpenRouter et TypeSafe pour cette décision.
 
+Le Collector confirme la persistance de l’Entry sans attendre Jev et reste disponible pour une autre capture. Une notification visible indique d’abord que le classement est en cours, puis le type retenu et, pour une Task ou un Project, le Project ou la Vision de rattachement s’il existe. Elle indique aussi l’absence de rattachement.
+
 En cas d’échec de Jev ou de réponse invalide, l’Entry reste non classifiée. L’utilisateur peut relancer la classification ou la traiter manuellement depuis l’Inbox de secours.
 
 ### 9.3 Rattachement facultatif
@@ -550,6 +552,8 @@ Si la confirmation serveur n’arrive pas :
 - une nouvelle tentative de la même capture ne crée aucun doublon.
 
 Après confirmation, le champ est vidé, un feedback bref est donné et le focus reste prêt pour une nouvelle capture. Aucune modal ni navigation n’est imposée.
+
+Le classement Jev se poursuit côté serveur après cette confirmation. Si le processus est interrompu, l’Entry persistée reste récupérable et peut être relancée ; le navigateur n’attend pas l’appel à Jev pour reprendre la saisie.
 
 ---
 
@@ -1458,9 +1462,10 @@ Home
 → saisir contenu
 → Enter
 → Entry persistée
+→ confirmation serveur, Collector vidé et prêt pour une autre capture
 → Jev classe en Task / Project / Vision
 → objet créé et utilisable
-→ confirmation serveur, Collector vidé
+→ notification du type et du rattachement éventuel
 → capture visible dans Revue pour vérification facultative
 ```
 

@@ -83,7 +83,9 @@ action -> Saving… -> server OK -> Saved
 
 Le contenu local saisi n'est jamais perdu sur échec. La confirmation de
 persistance de l'Entry autorise le vidage du Collector même si Jev échoue
-ensuite ; l'échec reste visible et relançable depuis la Revue.
+ensuite. Le navigateur suit séparément l'état du classement pour afficher
+une notification du type et du rattachement éventuel ; l'échec reste
+visible et relançable depuis le Collector ou l'Inbox de secours.
 
 ## 5. Validation et invariants
 
@@ -455,10 +457,13 @@ description. Jev ne génère ni texte, ni date, ni statut métier.
 
 ### Persistance et relance
 
-Le cas d'usage `captureWithJev` crée d'abord une Entry avec
-`capture_request_id`. Il appelle Jev hors transaction, puis verrouille
-l'Entry et crée l'objet ainsi que son éventuel lien dans une transaction
-qui renseigne la FK cible et `classification_state=classified`. Une
+Le cas d'usage de capture crée d'abord une Entry avec
+`capture_request_id` et répond dès cette persistance confirmée avec
+`saved_pending_classification`. Il lance Jev dans le processus serveur,
+hors transaction et sans bloquer la réponse HTTP. Une fois la décision
+obtenue, il verrouille l'Entry et crée l'objet ainsi que son éventuel
+lien dans une transaction qui renseigne la FK cible et
+`classification_state=classified`. Une
 relance avec la même clé retrouve l'Entry existante et, si elle est
 encore en attente ou en échec, peut reprendre la classification sans
 créer un second objet, même si la réponse HTTP précédente s'est perdue. La
@@ -466,12 +471,14 @@ transaction n'applique jamais une réponse Jev à une Entry déjà
 classifiée ou corrigée.
 
 Un timeout, une erreur fournisseur ou une réponse invalide passe l'Entry
-à `failed` et laisse son texte intact. La réponse à l'UI distingue
-`saved_and_classified` de `saved_pending_retry` : dans les deux cas la
-capture a été persistée et le Collector peut être vidé. `Retry` relance
-la même Entry. Si la connexion au serveur échoue avant confirmation,
-le Collector conserve le texte et sa clé d'idempotence. Aucun cron,
-worker ou autre file de traitement n'est ajouté pour cette slice.
+à `failed` et laisse son texte intact. Le navigateur interroge le statut
+de l'Entry après la réponse de capture et affiche une notification visible
+avec le type et le titre du parent éventuel, ou une action `Retry` en cas
+d'échec. Une Entry laissée `pending` par une interruption du processus est
+marquée `failed` lors d'un contrôle de statut après 60 secondes et peut
+être relancée. Si la connexion au serveur échoue avant confirmation, le
+Collector conserve le texte et sa clé d'idempotence. Aucun cron, worker
+ou autre service de traitement n'est ajouté pour cette slice.
 
 Le choix manuel dans le Collector et `Process Inbox` créent l'objet et
 marquent l'Entry `classified` avec `classification_source=manual` dans

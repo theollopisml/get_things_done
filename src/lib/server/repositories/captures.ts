@@ -105,6 +105,34 @@ export async function getCaptureEntry(id: string) {
 	return entry ?? null;
 }
 
+export async function getClassifiedRelationTitle(entry: typeof entries.$inferSelect) {
+	if (entry.taskId) {
+		const [task] = await db
+			.select({ projectId: tasks.projectId })
+			.from(tasks)
+			.where(eq(tasks.id, entry.taskId));
+		if (!task?.projectId) return null;
+		const [project] = await db
+			.select({ title: projects.title })
+			.from(projects)
+			.where(eq(projects.id, task.projectId));
+		return project?.title ?? null;
+	}
+	if (entry.projectId) {
+		const [project] = await db
+			.select({ visionId: projects.visionId })
+			.from(projects)
+			.where(eq(projects.id, entry.projectId));
+		if (!project?.visionId) return null;
+		const [vision] = await db
+			.select({ title: visions.title })
+			.from(visions)
+			.where(eq(visions.id, project.visionId));
+		return vision?.title ?? null;
+	}
+	return null;
+}
+
 export async function classifyCollectorManually(
 	id: string,
 	rawContent: string,

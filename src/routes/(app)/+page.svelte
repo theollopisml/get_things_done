@@ -1,16 +1,21 @@
 <script lang="ts">
 	import { postAction } from '$lib/post-action';
 	import type { CaptureKind } from '$lib/domain/capture';
+	import { onDestroy } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+
+	type Notice = { id: string; message: string; state: 'pending' | 'classified' | 'failed' };
 
 	let content = $state('');
 	let saving = $state(false);
 	let error = $state('');
-	let feedback = $state('');
 	let requestKey = $state<string | null>(null);
 	let requestContent = $state('');
-	let retryEntryId = $state<string | null>(null);
+	let notices = $state<Notice[]>([]);
 	let form: HTMLFormElement;
 	let entryButton: HTMLButtonElement;
+	const timers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+	let mounted = true;
 
 	function kindLabel(kind: unknown) {
 		if (kind === 'task') return 'Task';
@@ -18,6 +23,74 @@
 		if (kind === 'vision') return 'Vision';
 		return null;
 	}
+
+	function classificationNotice(kind: unknown, relationTitle: unknown, manual = false) {
+		const label = kindLabel(kind);
+		if (!label) return 'Capture classée';
+		const prefix = manual ? 'Créée en' : 'Classée en';
+		const parent = typeof relationTitle === 'string' && relationTitle.trim() ? relationTitle : null;
+		if (kind === 'task')
+			return `${prefix} ${label} · ${parent ? `Projet : ${parent}` : 'Sans projet'}`;
+		if (kind === 'project')
+			return `${prefix} ${label} · ${parent ? `Vision : ${parent}` : 'Sans vision'}`;
+		return `${prefix} ${label}`;
+	}
+
+	function setNotice(id: string, message: string, state: Notice['state']) {
+		const next = [{ id, message, state }, ...notices.filter((item) => item.id !== id)].slice(0, 3);
+		for (const activeId of timers.keys()) {
+			if (!next.some((item) => item.id === activeId)) {
+				clearTimeout(timers.get(activeId));
+				timers.delete(activeId);
+			}
+		}
+		notices = next;
+	}
+
+	function dismissNotice(id: string) {
+		clearTimeout(timers.get(id));
+		timers.delete(id);
+		notices = notices.filter((item) => item.id !== id);
+	}
+
+	function scheduleStatus(id: string, delay = 1200) {
+		clearTimeout(timers.get(id));
+		timers.set(
+			id,
+			setTimeout(() => void pollStatus(id), delay)
+		);
+	}
+
+	async function pollStatus(id: string) {
+		if (!mounted || !notices.some((item) => item.id === id)) return;
+		const data = new FormData();
+		data.set('id', id);
+		const result = await postAction('/?/status', data);
+		if (!mounted || !notices.some((item) => item.id === id)) return;
+		if (!result.ok) {
+			scheduleStatus(id, 3000);
+			return;
+		}
+		if (result.data?.status === 'classified') {
+			setNotice(
+				id,
+				classificationNotice(result.data.kind, result.data.relationTitle),
+				'classified'
+			);
+			timers.delete(id);
+		} else if (result.data?.status === 'failed') {
+			setNotice(id, 'Non classée · Inbox', 'failed');
+			timers.delete(id);
+		} else {
+			scheduleStatus(id);
+		}
+	}
+
+	onDestroy(() => {
+		mounted = false;
+		for (const timer of timers.values()) clearTimeout(timer);
+		timers.clear();
+	});
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -30,7 +103,6 @@
 		}
 		saving = true;
 		error = '';
-		feedback = '';
 		const submitted = content;
 		const key = requestKey && requestContent === submitted ? requestKey : crypto.randomUUID();
 		requestKey = key;
@@ -46,17 +118,21 @@
 				requestKey = null;
 				requestContent = '';
 			}
-			const pendingRetry = result.data?.status === 'saved_pending_retry';
-			const savedKind = kindLabel(result.data?.kind);
-			retryEntryId =
-				pendingRetry && typeof result.data?.entryId === 'string' ? result.data.entryId : null;
-			feedback = pendingRetry
-				? 'Non classée · Inbox'
-				: savedKind
-					? kind === 'entry'
-						? `Classée en ${savedKind}.`
-						: `${savedKind} enregistré.`
-					: 'Capture enregistrée.';
+			const id = result.data?.entryId;
+			if (typeof id === 'string') {
+				if (result.data?.status === 'saved_pending_classification') {
+					setNotice(id, 'Enregistrée · classement en cours…', 'pending');
+					scheduleStatus(id);
+				} else {
+					setNotice(
+						id,
+						classificationNotice(result.data?.kind, result.data?.relationTitle, kind !== 'entry'),
+						'classified'
+					);
+				}
+			} else {
+				setNotice(key, 'Capture enregistrée', 'classified');
+			}
 			form.querySelector('textarea')?.focus();
 		} else {
 			error = result.error || 'Enregistrement impossible. Réessaie.';
@@ -64,23 +140,23 @@
 		saving = false;
 	}
 
-	async function retryClassification() {
-		if (!retryEntryId || saving) return;
-		saving = true;
-		error = '';
+	async function retryClassification(id: string) {
+		setNotice(id, 'Relance de Jev…', 'pending');
 		const data = new FormData();
-		data.set('id', retryEntryId);
+		data.set('id', id);
 		const result = await postAction('/?/retry', data);
 		if (result.ok && result.data?.status === 'saved_and_classified') {
-			retryEntryId = null;
-			const savedKind = kindLabel(result.data.kind);
-			feedback = savedKind ? `Classée en ${savedKind}.` : 'Capture classée.';
+			setNotice(
+				id,
+				classificationNotice(result.data.kind, result.data.relationTitle),
+				'classified'
+			);
 		} else if (!result.ok) {
-			error = result.error || 'Relance impossible. Réessaie.';
+			setNotice(id, result.error || 'Relance impossible', 'failed');
 		} else {
-			feedback = 'Non classée · Inbox';
+			setNotice(id, 'Enregistrée · classement en cours…', 'pending');
+			scheduleStatus(id);
 		}
-		saving = false;
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -94,6 +170,35 @@
 <svelte:head>
 	<title>Collector · Get Things Done</title>
 </svelte:head>
+
+<div
+	class="fixed top-20 right-4 z-50 flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2"
+	aria-live="polite"
+>
+	{#each notices as notice (notice.id)}
+		<div
+			class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg"
+		>
+			<span
+				class:animate-pulse={notice.state === 'pending'}
+				class="min-w-0 flex-1 font-medium break-words text-slate-900">{notice.message}</span
+			>
+			{#if notice.state === 'failed'}
+				<button
+					type="button"
+					class="ui-focus text-sm font-semibold text-slate-900 underline"
+					onclick={() => retryClassification(notice.id)}>Réessayer</button
+				>
+			{/if}
+			<button
+				type="button"
+				class="ui-focus text-slate-500"
+				aria-label="Masquer la notification"
+				onclick={() => dismissNotice(notice.id)}>×</button
+			>
+		</div>
+	{/each}
+</div>
 
 <div class="mx-auto max-w-3xl space-y-8">
 	<div class="space-y-3">
@@ -125,15 +230,6 @@
 			Entrée pour capturer · Maj + Entrée pour une nouvelle ligne
 		</p>
 		{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
-		{#if feedback}<p role="status" class="mt-3 text-sm text-green-700">{feedback}</p>{/if}
-		{#if retryEntryId}
-			<button
-				type="button"
-				disabled={saving}
-				onclick={retryClassification}
-				class="ui-button ui-button-quiet ui-focus mt-3">Réessayer avec Jev</button
-			>
-		{/if}
 		<div class="mt-5 flex flex-wrap gap-2">
 			<button
 				bind:this={entryButton}
