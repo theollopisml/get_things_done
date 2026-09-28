@@ -83,7 +83,7 @@ slices:
       - description: "Créer le client Jev server-only via OpenRouter et valider ses réponses"
         done: true
       - description: "Définir les choix bornés Task/Project/Vision et les rattachements facultatifs"
-        done: false
+        done: true
       - description: "Classifier les captures du Collector après persistance avec échec récupérable et Retry"
         done: false
       - description: "Créer la Revue des classifications Jev avec confirmation et correction du type/rattachement"
