@@ -2,6 +2,7 @@
 	import { beforeNavigate, invalidateAll } from '$app/navigation';
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
+	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
 	import type { PageData } from './$types';
@@ -16,6 +17,7 @@
 	} = $props();
 	let editing = $state(false);
 	let closing = $state(false);
+	let preview = $state(false);
 	let busy = $state(false);
 	// Local edits intentionally retain their initial values across server invalidation.
 	// svelte-ignore state_referenced_locally
@@ -204,13 +206,35 @@
 						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
 					/></label
 				>
-				<label class="grid gap-1 text-sm sm:col-span-2"
-					>Description Markdown<textarea
-						bind:value={value.description}
-						oninput={schedule}
-						rows="4"
-						class="ui-focus rounded-lg border border-slate-300 p-3"></textarea></label
-				>
+				<div class="space-y-2 sm:col-span-2">
+					<div class="flex items-center justify-between gap-3">
+						{#if preview}<span class="text-sm">Description Markdown</span>{:else}<label
+								for={`task-description-${task.id}`}
+								class="text-sm">Description Markdown</label
+							>{/if}
+						<button
+							type="button"
+							aria-pressed={preview}
+							onclick={() => (preview = !preview)}
+							class="ui-button ui-button-quiet ui-focus">{preview ? 'Éditer' : 'Aperçu'}</button
+						>
+					</div>
+					{#if preview}
+						<div
+							aria-label="Aperçu de la description"
+							class="min-h-28 rounded-lg border border-slate-300 bg-white p-3"
+						>
+							<MarkdownPreview source={value.description} />
+						</div>
+					{:else}
+						<textarea
+							id={`task-description-${task.id}`}
+							bind:value={value.description}
+							oninput={schedule}
+							rows="4"
+							class="ui-focus w-full rounded-lg border border-slate-300 p-3"></textarea>
+					{/if}
+				</div>
 				<label class="grid gap-1 text-sm"
 					>Date planifiée<input
 						type="date"
