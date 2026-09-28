@@ -4,7 +4,7 @@ import {
 	MAX_CANDIDATE_TITLE_CHARACTERS,
 	MAX_RELATION_CANDIDATES
 } from './classification';
-import type { ChoiceResult } from './client';
+import { JevError, type ChoiceResult } from './client';
 
 function decision(choice: string, probabilities: Record<string, number>): ChoiceResult {
 	return { choice, probabilities, confidence: 0.95, model: 'typesafe/jev-1.13', cost: 0.01 };
@@ -103,5 +103,16 @@ describe('Jev capture decisions', () => {
 		]);
 		expect(result.relationId).toBeNull();
 		expect(client.choose).toHaveBeenCalledOnce();
+	});
+
+	it('keeps the valid type when only the optional relation decision fails', async () => {
+		const client = {
+			choose: vi
+				.fn()
+				.mockResolvedValueOnce(decision('task', { task: 0.9, project: 0.08, vision: 0.02 }))
+				.mockRejectedValueOnce(new JevError('invalid_response'))
+		};
+		const result = await decideCapture('Faire une tâche', client, async () => [project]);
+		expect(result).toMatchObject({ kind: 'task', relationId: null, relationProbability: null });
 	});
 });

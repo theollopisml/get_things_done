@@ -1,5 +1,5 @@
 import type { ClassifiedKind } from '$lib/domain/capture';
-import type { ChoiceRequest, ChoiceResult } from './client';
+import { JevError, type ChoiceRequest, type ChoiceResult } from './client';
 
 export const MAX_RELATION_CANDIDATES = 20;
 export const MAX_CANDIDATE_TITLE_CHARACTERS = 4_000;
@@ -58,14 +58,20 @@ export async function decideCapture(
 
 	const criteria: Record<string, string> = { none: 'Aucun rattachement pertinent.' };
 	for (const candidate of candidates) criteria[candidate.id] = candidate.title;
-	const relationDecision = await client.choose({
-		state: rawContent,
-		instructions:
-			kind === 'task'
-				? 'Cette Task appartient-elle clairement à un des Projects existants ?'
-				: 'Ce Project appartient-il clairement à une des Visions existantes ?',
-		criteria
-	});
+	let relationDecision: ChoiceResult;
+	try {
+		relationDecision = await client.choose({
+			state: rawContent,
+			instructions:
+				kind === 'task'
+					? 'Cette Task appartient-elle clairement à un des Projects existants ?'
+					: 'Ce Project appartient-il clairement à une des Visions existantes ?',
+			criteria
+		});
+	} catch (error) {
+		if (error instanceof JevError) return result;
+		throw error;
+	}
 	const chosen = relationDecision.choice;
 	const probability = relationDecision.probabilities[chosen];
 	result.relationProbability = probability;

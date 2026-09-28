@@ -6,8 +6,18 @@
 	let saving = $state(false);
 	let error = $state('');
 	let feedback = $state('');
+	let requestKey = $state<string | null>(null);
+	let requestContent = $state('');
+	let retryEntryId = $state<string | null>(null);
 	let form: HTMLFormElement;
 	let entryButton: HTMLButtonElement;
+
+	function kindLabel(kind: unknown) {
+		if (kind === 'task') return 'Task';
+		if (kind === 'project') return 'Project';
+		if (kind === 'vision') return 'Vision';
+		return null;
+	}
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -22,19 +32,53 @@
 		error = '';
 		feedback = '';
 		const submitted = content;
+		const key = requestKey && requestContent === submitted ? requestKey : crypto.randomUUID();
+		requestKey = key;
+		requestContent = submitted;
 		const data = new FormData();
 		data.set('rawContent', submitted);
 		data.set('kind', kind);
+		data.set('requestId', key);
 		const result = await postAction('/?/capture', data);
 		if (result.ok) {
-			if (content === submitted) content = '';
-			feedback =
-				kind === 'entry'
-					? 'Capture ajoutée à l’Inbox.'
-					: `${kind === 'task' ? 'Task' : kind === 'project' ? 'Project' : 'Vision'} créé.`;
+			if (content === submitted) {
+				content = '';
+				requestKey = null;
+				requestContent = '';
+			}
+			const pendingRetry = result.data?.status === 'saved_pending_retry';
+			const savedKind = kindLabel(result.data?.kind);
+			retryEntryId =
+				pendingRetry && typeof result.data?.entryId === 'string' ? result.data.entryId : null;
+			feedback = pendingRetry
+				? 'Non classée · Inbox'
+				: savedKind
+					? kind === 'entry'
+						? `Classée en ${savedKind}.`
+						: `${savedKind} enregistré.`
+					: 'Capture enregistrée.';
 			form.querySelector('textarea')?.focus();
 		} else {
 			error = result.error || 'Enregistrement impossible. Réessaie.';
+		}
+		saving = false;
+	}
+
+	async function retryClassification() {
+		if (!retryEntryId || saving) return;
+		saving = true;
+		error = '';
+		const data = new FormData();
+		data.set('id', retryEntryId);
+		const result = await postAction('/?/retry', data);
+		if (result.ok && result.data?.status === 'saved_and_classified') {
+			retryEntryId = null;
+			const savedKind = kindLabel(result.data.kind);
+			feedback = savedKind ? `Classée en ${savedKind}.` : 'Capture classée.';
+		} else if (!result.ok) {
+			error = result.error || 'Relance impossible. Réessaie.';
+		} else {
+			feedback = 'Non classée · Inbox';
 		}
 		saving = false;
 	}
@@ -56,7 +100,7 @@
 		<p class="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">Capture rapide</p>
 		<h1 class="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Collector</h1>
 		<p class="text-sm leading-6 text-slate-600">
-			Dépose une idée ici. Tu pourras la classer plus tard dans l’Inbox.
+			Dépose une idée ici. Jev la classera automatiquement ; tu pourras vérifier son choix ensuite.
 		</p>
 	</div>
 
@@ -82,6 +126,14 @@
 		</p>
 		{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
 		{#if feedback}<p role="status" class="mt-3 text-sm text-green-700">{feedback}</p>{/if}
+		{#if retryEntryId}
+			<button
+				type="button"
+				disabled={saving}
+				onclick={retryClassification}
+				class="ui-button ui-button-quiet ui-focus mt-3">Réessayer avec Jev</button
+			>
+		{/if}
 		<div class="mt-5 flex flex-wrap gap-2">
 			<button
 				bind:this={entryButton}
@@ -91,7 +143,7 @@
 				disabled={saving}
 				class="ui-button ui-button-primary ui-focus"
 			>
-				{saving ? 'Enregistrement…' : 'Capturer dans l’Inbox'}
+				{saving ? 'Enregistrement…' : 'Capturer avec Jev'}
 			</button>
 			<button
 				type="submit"

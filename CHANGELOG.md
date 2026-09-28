@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Classify new Collector captures with Jev after saving them, with request-key deduplication, a short type confirmation, and a retry action when classification fails.
 - Bound Jev classification to Task, Project, and Vision, with optional links to eligible existing parents only when the relation decision is confident.
 - Add a server-only Jev Decisions API client with pinned model, response validation, timeout, and safe error codes.
 - Capture ideas in a single multiline Collector field, with optional direct Task, Project, or Vision classification and retry on failed saves.
