@@ -57,20 +57,20 @@ slices:
 
   - id: "04"
     name: collector-inbox
-    done: false
+    done: true
     tasks:
       - description: "Créer le modèle Entry"
-        done: false
+        done: true
       - description: "Implémenter le Collector mono-champ"
-        done: false
+        done: true
       - description: "Garantir la persistance avant vidage du Collector"
-        done: false
+        done: true
       - description: "Créer la liste Inbox"
-        done: false
+        done: true
       - description: "Créer Process Inbox avec Task/Project/Vision/Later/Delete"
-        done: false
+        done: true
       - description: "Implémenter first-line -> title et reste -> description"
-        done: false
+        done: true
 
   - id: "05"
     name: tasks

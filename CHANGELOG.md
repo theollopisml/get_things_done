@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Capture ideas in a single multiline Collector field, with optional direct Task, Project, or Vision classification and retry on failed saves.
+- Review and edit Inbox captures with autosave, then process them oldest first with Task, Project, Vision, Later, and Delete actions.
+- Persist classified captures transactionally with PostgreSQL models and validate Collector and Inbox actions with Zod.
+- Verify capture, editing, classification, and deletion against PostgreSQL in the integration suite.
 - Add keyboard skip links to the main content and mobile navigation, and announce the login route with a page title.
 - Make the app installable with a web manifest and app icons, while keeping it online-only.
 - Self-host JetBrains Mono and use shared button and focus styles across the app.
