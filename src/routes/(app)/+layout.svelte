@@ -2,16 +2,16 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Binoculars from '@lucide/svelte/icons/binoculars';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import House from '@lucide/svelte/icons/house';
-	import Inbox from '@lucide/svelte/icons/inbox';
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import { authClient } from '$lib/auth-client';
 
 	const navigation = [
 		{ href: '/', label: 'Accueil', icon: House },
-		{ href: '/inbox', label: 'Inbox', icon: Inbox },
+		{ href: '/review', label: 'Revue', icon: ClipboardCheck },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
 		{ href: '/projects', label: 'Projects', icon: FolderKanban },
 		{ href: '/visions', label: 'Visions', icon: Binoculars }

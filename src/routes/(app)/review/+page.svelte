@@ -81,24 +81,28 @@
 	</header>
 	{#if pageError}<p role="alert" class="text-sm text-red-700">{pageError}</p>{/if}
 
-	<nav aria-label="Filtrer la revue" class="flex flex-wrap gap-2">
-		<a
-			href={resolve('/review')}
-			aria-current={data.onlyUnreviewed ? 'page' : undefined}
-			class="ui-button ui-focus {data.onlyUnreviewed ? 'ui-button-primary' : 'ui-button-quiet'}"
-			>À revoir</a
-		>
-		<form method="GET" action={resolve('/review')}>
-			<button
-				type="submit"
-				name="filter"
-				value="all"
-				aria-pressed={!data.onlyUnreviewed}
-				class="ui-button ui-focus {!data.onlyUnreviewed ? 'ui-button-primary' : 'ui-button-quiet'}"
-				>Toutes</button
+	<div class="flex flex-wrap items-center justify-between gap-3">
+		<nav aria-label="Filtrer la revue" class="flex flex-wrap gap-2">
+			<a
+				href={resolve('/review')}
+				aria-current={data.onlyUnreviewed ? 'page' : undefined}
+				class="ui-button ui-focus {data.onlyUnreviewed ? 'ui-button-primary' : 'ui-button-quiet'}"
+				>À revoir</a
 			>
-		</form>
-	</nav>
+			<form method="GET" action={resolve('/review')}>
+				<button
+					type="submit"
+					name="filter"
+					value="all"
+					aria-pressed={!data.onlyUnreviewed}
+					class="ui-button ui-focus {!data.onlyUnreviewed
+						? 'ui-button-primary'
+						: 'ui-button-quiet'}">Toutes</button
+				>
+			</form>
+		</nav>
+		<a href={resolve('/inbox')} class="ui-button ui-button-quiet ui-focus">Inbox de secours</a>
+	</div>
 
 	{#if !data.entries.length}
 		<div

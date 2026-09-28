@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Put Review in the desktop and mobile navigation, with the fallback Inbox linked from Review.
 - Keep Review actions quiet until hover or keyboard focus, with a clear type-first editing panel that remains available on touch screens.
 - Open the Review on unreviewed classifications and offer one action to confirm every visible unreviewed capture.
 - Show the Collector as a compact input with one Capture action; keep manual classification in the fallback Inbox.
