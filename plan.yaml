@@ -248,18 +248,18 @@ slices:
 
   - id: "12"
     name: markdown
-    done: false
+    done: true
     tasks:
       - description: "Créer MarkdownEditor léger"
-        done: false
+        done: true
       - description: "Rendre le Markdown sans HTML brut"
-        done: false
+        done: true
       - description: "Supporter liens, listes, code et task lists"
-        done: false
+        done: true
       - description: "Implémenter les checkboxes interactives via transformation du Markdown"
-        done: false
+        done: true
       - description: "Autosave après modification"
-        done: false
+        done: true
 
   - id: "13"
     name: trash

@@ -3,6 +3,7 @@
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import { toggleMarkdownTask } from '$lib/domain/markdown-preview';
 	import { postAction } from '$lib/post-action';
 	import type { PageData } from './$types';
 
@@ -220,7 +221,13 @@
 							aria-label="Aperçu de la description"
 							class="min-h-24 rounded-lg border border-slate-300 p-3"
 						>
-							<MarkdownPreview source={value.description} />
+							<MarkdownPreview
+								source={value.description}
+								onToggle={(lineIndex) => {
+									value.description = toggleMarkdownTask(value.description, lineIndex);
+									schedule();
+								}}
+							/>
 						</div>{:else}<textarea
 							id={`checkpoint-description-${checkpoint.id}`}
 							bind:value={value.description}

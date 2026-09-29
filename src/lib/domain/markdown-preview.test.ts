@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseInline, parseMarkdownPreview } from './markdown-preview';
+import { parseInline, parseMarkdownPreview, toggleMarkdownTask } from './markdown-preview';
 
 describe('Markdown preview', () => {
 	it('renders common blocks from the current source', () => {
@@ -30,5 +30,31 @@ describe('Markdown preview', () => {
 			{ kind: 'text' },
 			{ kind: 'link', href: '/docs' }
 		]);
+	});
+
+	it('locates each task list item even when labels repeat or code contains a marker', () => {
+		const blocks = parseMarkdownPreview(
+			'```\n- [ ] example\n```\n\n- [ ] Same\n- [x] Same\n\n1. [ ] Ordered'
+		);
+		expect(blocks).toMatchObject([
+			{ kind: 'code', value: '- [ ] example' },
+			{
+				kind: 'list',
+				items: [
+					{ checked: false, lineIndex: 4 },
+					{ checked: true, lineIndex: 5 }
+				]
+			},
+			{ kind: 'list', ordered: true, items: [{ checked: false, lineIndex: 7 }] }
+		]);
+	});
+
+	it('toggles only the selected source marker without changing line endings or other text', () => {
+		const source = '- [ ] Same\r\n- [x] Same\r\n\r\n1. [ ] Ordered';
+		expect(toggleMarkdownTask(source, 1)).toBe('- [ ] Same\r\n- [ ] Same\r\n\r\n1. [ ] Ordered');
+		expect(toggleMarkdownTask(source, 3)).toBe('- [ ] Same\r\n- [x] Same\r\n\r\n1. [x] Ordered');
+		expect(toggleMarkdownTask(source, 2)).toBe(source);
+		expect(toggleMarkdownTask(source, 99)).toBe(source);
+		expect(toggleMarkdownTask(source, -1)).toBe(source);
 	});
 });

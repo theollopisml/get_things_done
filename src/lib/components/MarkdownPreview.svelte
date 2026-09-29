@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { parseMarkdownPreview } from '$lib/domain/markdown-preview';
 	import MarkdownInline from './MarkdownInline.svelte';
-	let { source }: { source: string } = $props();
+	let { source, onToggle }: { source: string; onToggle?: (lineIndex: number) => void } = $props();
 	let blocks = $derived(parseMarkdownPreview(source));
 </script>
 
@@ -32,11 +32,10 @@
 						{#if item.checked !== null}<input
 								type="checkbox"
 								checked={item.checked}
-								disabled
-								class="mr-2 align-middle"
-								aria-label={item.checked
-									? 'Case cochée dans l’aperçu'
-									: 'Case non cochée dans l’aperçu'}
+								disabled={!onToggle}
+								onchange={() => onToggle?.(item.lineIndex)}
+								class="ui-focus mr-2 align-middle"
+								aria-label={`${item.checked ? 'Décocher' : 'Cocher'} : ${item.content.map((part) => part.value).join('') || 'case vide'}`}
 							/>{/if}<MarkdownInline parts={item.content} />
 					</li>
 				{/each}

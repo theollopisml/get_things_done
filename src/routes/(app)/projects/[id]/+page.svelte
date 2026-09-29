@@ -4,6 +4,7 @@
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import { toggleMarkdownTask } from '$lib/domain/markdown-preview';
 	import QuickTaskComposer from '$lib/components/QuickTaskComposer.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
 	import type { ProjectStatus } from '$lib/domain/projects';
@@ -385,7 +386,13 @@
 						aria-label="Aperçu de la description"
 						class="min-h-28 rounded-lg border border-slate-300 p-3"
 					>
-						<MarkdownPreview source={value.description} />
+						<MarkdownPreview
+							source={value.description}
+							onToggle={(lineIndex) => {
+								value.description = toggleMarkdownTask(value.description, lineIndex);
+								schedule();
+							}}
+						/>
 					</div>{:else}<textarea
 						id="project-description"
 						bind:value={value.description}

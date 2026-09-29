@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Toggle Markdown checklist items from the Task, Project, and Checkpoint previews while preserving the source text and saving the change automatically.
 - Find Tasks, Projects, and Checkpoints by title or description from any private page with a keyboard and touch accessible search palette.
 - Open matching objects directly and use the palette for navigation or quick Task and Project creation.
 - Prioritize title matches and limit results per type, with PostgreSQL coverage for closed and deleted objects and literal search characters.

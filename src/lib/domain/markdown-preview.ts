@@ -6,7 +6,11 @@ export type MarkdownBlock =
 	| { kind: 'heading'; level: number; content: Inline[] }
 	| { kind: 'paragraph'; content: Inline[] }
 	| { kind: 'code'; value: string }
-	| { kind: 'list'; ordered: boolean; items: { checked: boolean | null; content: Inline[] }[] };
+	| {
+			kind: 'list';
+			ordered: boolean;
+			items: { checked: boolean | null; content: Inline[]; lineIndex: number }[];
+	  };
 
 function safeHref(value: string): string | null {
 	if (/^(https?:\/\/|mailto:|\/(?!\/)|#|\.\.?\/)/i.test(value)) return value;
@@ -37,14 +41,31 @@ export function parseInline(source: string): Inline[] {
 	return result;
 }
 
-function listLine(line: string) {
-	const match = /^\s{0,3}([-*+]|\d+\.)\s+(.+)$/.exec(line);
+const taskMarker = /^(\s{0,3}(?:[-*+]|\d+\.)\s+)\[([ xX])\](?=\s|$)/;
+
+export function toggleMarkdownTask(source: string, lineIndex: number): string {
+	if (!Number.isInteger(lineIndex) || lineIndex < 0) return source;
+	const lines = source.split(/(\r\n|\r|\n)/);
+	const offset = lineIndex * 2;
+	if (offset >= lines.length) return source;
+	const match = taskMarker.exec(lines[offset]);
+	if (!match) return source;
+	const markerIndex = match[1].length + 1;
+	const line = lines[offset];
+	lines[offset] =
+		line.slice(0, markerIndex) + (match[2] === ' ' ? 'x' : ' ') + line.slice(markerIndex + 1);
+	return lines.join('');
+}
+
+function listLine(line: string, lineIndex: number) {
+	const match = /^\s{0,3}([-*+]|\d+\.)\s+(.*)$/.exec(line);
 	if (!match) return null;
-	const checkbox = /^\[([ xX])\]\s+(.+)$/.exec(match[2]);
+	const checkbox = /^\[([ xX])\](?:\s+(.*)|$)/.exec(match[2]);
 	return {
 		ordered: /\d/.test(match[1]),
 		checked: checkbox ? checkbox[1].toLowerCase() === 'x' : null,
-		content: parseInline(checkbox ? checkbox[2] : match[2])
+		content: parseInline(checkbox ? (checkbox[2] ?? '') : match[2]),
+		lineIndex
 	};
 }
 
@@ -72,12 +93,12 @@ export function parseMarkdownPreview(source: string): MarkdownBlock[] {
 			index++;
 			continue;
 		}
-		const firstItem = listLine(line);
+		const firstItem = listLine(line, index);
 		if (firstItem) {
 			const items = [firstItem];
 			index++;
 			while (index < lines.length) {
-				const item = listLine(lines[index]);
+				const item = listLine(lines[index], index);
 				if (!item || item.ordered !== firstItem.ordered) break;
 				items.push(item);
 				index++;
@@ -91,7 +112,7 @@ export function parseMarkdownPreview(source: string): MarkdownBlock[] {
 			index < lines.length &&
 			lines[index].trim() &&
 			!/^\s{0,3}(```|#{1,6}\s)/.test(lines[index]) &&
-			!listLine(lines[index])
+			!listLine(lines[index], index)
 		) {
 			paragraph.push(lines[index++].trim());
 		}
