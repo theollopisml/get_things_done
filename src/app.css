@@ -29,8 +29,43 @@
 }
 
 @layer base {
+	html[data-theme='dark'] {
+		color-scheme: dark;
+		--color-white: #161f2e;
+		--color-slate-50: #0d1420;
+		--color-slate-100: #222d40;
+		--color-slate-200: #33435b;
+		--color-slate-300: #526178;
+		--color-slate-400: #8090a8;
+		--color-slate-500: #9eabc0;
+		--color-slate-600: #bdc8d8;
+		--color-slate-700: #d2dbe8;
+		--color-slate-800: #e5ebf4;
+		--color-slate-900: #f1f5f9;
+		--color-slate-950: #ffffff;
+		--color-amber-100: #45320d;
+		--color-amber-700: #fbbf24;
+		--color-amber-900: #fde68a;
+		--color-red-700: #fda4af;
+	}
+
+	html[data-theme='light'] {
+		color-scheme: light;
+	}
+
 	html {
 		font-family: var(--font-sans);
+	}
+
+	body {
+		background-color: var(--color-slate-50);
+		color: var(--color-slate-900);
+	}
+
+	input:not([type='checkbox']),
+	textarea {
+		background-color: var(--color-white);
+		color: var(--color-slate-900);
 	}
 }
 
@@ -49,5 +84,10 @@
 
 	.ui-button-quiet {
 		@apply text-slate-600 hover:bg-slate-100 hover:text-slate-950;
+	}
+
+	html[data-theme='dark'] .markdown-code {
+		background-color: var(--color-slate-50);
+		color: var(--color-slate-800);
 	}
 }

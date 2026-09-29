@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { authClient } from '$lib/auth-client';
 
 	let { data } = $props();
@@ -29,6 +30,8 @@
 <svelte:head>
 	<title>Connexion · Get Things Done</title>
 </svelte:head>
+
+<div class="fixed top-4 right-4"><ThemeToggle /></div>
 
 <main class="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 text-slate-900">
 	<div class="space-y-2">

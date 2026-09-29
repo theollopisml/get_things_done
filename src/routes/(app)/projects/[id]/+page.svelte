@@ -526,7 +526,7 @@
 
 <Dialog.Root bind:open={confirmOpen}>
 	<Dialog.Portal>
-		<Dialog.Overlay class="fixed inset-0 z-40 bg-slate-950/60" />
+		<Dialog.Overlay class="fixed inset-0 z-40 bg-black/65" />
 		<Dialog.Content
 			onEscapeKeydown={(event) => {
 				if (busy) event.preventDefault();

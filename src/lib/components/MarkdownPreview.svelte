@@ -19,7 +19,7 @@
 			>
 		{:else if block.kind === 'paragraph'}<p><MarkdownInline parts={block.content} /></p>
 		{:else if block.kind === 'code'}<pre
-				class="overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs leading-5 text-slate-100"><code
+				class="markdown-code overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs leading-5 text-slate-100"><code
 					>{block.value}</code
 				></pre>
 		{:else}

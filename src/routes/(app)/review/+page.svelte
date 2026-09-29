@@ -220,7 +220,7 @@
 
 <Dialog.Root bind:open={modalOpen}>
 	<Dialog.Portal>
-		<Dialog.Overlay class="fixed inset-0 z-40 bg-slate-950/60" />
+		<Dialog.Overlay class="fixed inset-0 z-40 bg-black/65" />
 		{#if activeEntry && !activeEntry.objectDeleted}
 			{@const entry = activeEntry}
 			<Dialog.Content
@@ -299,7 +299,7 @@
 												<span
 													aria-hidden="true"
 													class="ml-auto size-4 rounded-full border {selectedKind === kind
-														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_white]'
+														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_var(--color-white)]'
 														: 'border-slate-300 bg-white'}"
 												></span>
 											</label>
@@ -390,7 +390,7 @@
 													aria-hidden="true"
 													class="ml-auto size-4 shrink-0 rounded-full border {selectedRelation ===
 													''
-														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_white]'
+														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_var(--color-white)]'
 														: 'border-slate-300 bg-white'}"
 												></span>
 											</label>
@@ -414,7 +414,7 @@
 														aria-hidden="true"
 														class="ml-auto size-4 shrink-0 rounded-full border {selectedRelation ===
 														option.id
-															? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_white]'
+															? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_var(--color-white)]'
 															: 'border-slate-300 bg-white'}"
 													></span>
 												</label>

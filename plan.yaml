@@ -161,6 +161,17 @@ slices:
       - description: "Adapter les tests et vérifier le parcours complet Task/Project"
         done: true
 
+  - id: "08a"
+    name: appearance
+    done: true
+    tasks:
+      - description: "Afficher un thème sombre par défaut et permettre le basculement clair/sombre sur toutes les pages"
+        done: true
+      - description: "Conserver le choix dans le navigateur et l'appliquer avant le premier rendu"
+        done: true
+      - description: "Vérifier les deux thèmes et la persistance après rechargement"
+        done: true
+
   - id: "09"
     name: home
     done: false

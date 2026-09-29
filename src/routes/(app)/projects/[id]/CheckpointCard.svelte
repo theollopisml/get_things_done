@@ -149,7 +149,7 @@
 		{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
 	</article>
 	<Dialog.Portal>
-		<Dialog.Overlay class="fixed inset-0 z-40 bg-slate-950/60" />
+		<Dialog.Overlay class="fixed inset-0 z-40 bg-black/65" />
 		<Dialog.Content
 			onOpenAutoFocus={(event) => {
 				event.preventDefault();

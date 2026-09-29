@@ -6,6 +6,7 @@
 	import House from '@lucide/svelte/icons/house';
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { authClient } from '$lib/auth-client';
 
 	const navigation = [
@@ -80,16 +81,19 @@
 					</a>
 				{/each}
 			</nav>
-			<button
-				type="button"
-				onclick={signOut}
-				disabled={pending}
-				class="ui-button ui-button-quiet ui-focus shrink-0 px-3"
-			>
-				<LogOut size={17} aria-hidden="true" />
-				<span class="hidden sm:inline">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
-				<span class="sr-only sm:hidden">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
-			</button>
+			<div class="flex shrink-0 items-center gap-2">
+				<ThemeToggle />
+				<button
+					type="button"
+					onclick={signOut}
+					disabled={pending}
+					class="ui-button ui-button-quiet ui-focus shrink-0 px-3"
+				>
+					<LogOut size={17} aria-hidden="true" />
+					<span class="hidden sm:inline">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
+					<span class="sr-only sm:hidden">{pending ? 'Déconnexion…' : 'Se déconnecter'}</span>
+				</button>
+			</div>
 		</div>
 		{#if error}
 			<p role="alert" class="mx-auto max-w-7xl px-4 pb-3 text-sm text-red-700 sm:px-6 lg:px-8">

@@ -269,6 +269,11 @@ statut parent.
 Tailwind pour le style ; Bits UI seulement pour primitives complexes ;
 Lucide unique pour les icônes ; JetBrains Mono initialement global.
 
+Les deux palettes sont définies par les variables de couleur Tailwind sur
+`html[data-theme]`. Le document démarre en mode sombre ; un court script dans
+`app.html` rétablit le choix `localStorage` avant le premier rendu. Un contrôle
+partagé sur la connexion et le shell change le thème sans requête serveur.
+
 `Cmd/Ctrl+K` : recherche/navigation/actions limitées : Revue, Tasks,
 Projects, New Task/Project, recherche. Pas de système de
 plugins.

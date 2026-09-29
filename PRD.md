@@ -1256,6 +1256,8 @@ L’interface doit être :
 
 La hiérarchie visuelle doit favoriser le contenu et les actions plutôt que les dashboards décoratifs.
 
+Le thème sombre est affiché par défaut. Un contrôle accessible permet de passer au thème clair ou de revenir au sombre ; le choix est conservé dans ce navigateur et s'applique aussi à la page de connexion.
+
 ---
 
 ## 28. Authentification et modèle utilisateur
