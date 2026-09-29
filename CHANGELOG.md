@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Delete Tasks, Projects, and Checkpoints into a private Trash, with restoration for 30 days, confirmed permanent purge, and short Undo feedback.
+- Preserve Tasks while detaching them from deleted Projects or Checkpoints; keep Jev review links to deleted objects until permanent purge.
+- Automatically remove expired Trash contents when the Trash is opened, including linked classified captures.
 - Toggle Markdown checklist items from the Task, Project, and Checkpoint previews while preserving the source text and saving the change automatically.
 - Find Tasks, Projects, and Checkpoints by title or description from any private page with a keyboard and touch accessible search palette.
 - Open matching objects directly and use the palette for navigation or quick Task and Project creation.

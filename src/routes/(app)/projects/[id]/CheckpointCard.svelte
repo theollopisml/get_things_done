@@ -11,11 +11,13 @@
 	let {
 		checkpoint,
 		projectId,
-		onUpdated
+		onUpdated,
+		onDelete
 	}: {
 		checkpoint: Checkpoint;
 		projectId: string;
 		onUpdated: () => Promise<void>;
+		onDelete: (id: string) => Promise<boolean>;
 	} = $props();
 	let editing = $state(false);
 	let closing = $state(false);
@@ -87,6 +89,20 @@
 		busy = false;
 	}
 
+	async function remove() {
+		if (
+			busy ||
+			!window.confirm(
+				`Supprimer le Checkpoint « ${checkpoint.title} » ? Les Tasks liées seront détachées.`
+			)
+		)
+			return;
+		if (!(await save())) return;
+		busy = true;
+		if (await onDelete(checkpoint.id)) editing = false;
+		busy = false;
+	}
+
 	async function closeEdit() {
 		if (closing) return;
 		closing = true;
@@ -149,6 +165,12 @@
 					>
 				{/if}
 				<Dialog.Trigger class="ui-button ui-button-quiet ui-focus">Modifier</Dialog.Trigger>
+				<button
+					type="button"
+					disabled={busy}
+					onclick={remove}
+					class="ui-button ui-button-quiet ui-focus text-red-700">Supprimer</button
+				>
 			</div>
 		</div>
 		{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}

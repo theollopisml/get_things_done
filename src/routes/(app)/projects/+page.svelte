@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { postAction } from '$lib/post-action';
 	import type { PageData } from './$types';
 
@@ -8,6 +9,7 @@
 	let title = $state('');
 	let creating = $state(false);
 	let error = $state('');
+	let undoProject = $derived(page.url.searchParams.get('undoProject'));
 	const groups = [
 		{ status: 'active', label: 'En cours' },
 		{ status: 'planned', label: 'Planifiés' },
@@ -29,6 +31,18 @@
 			await invalidateAll();
 		} else error = result.error || 'Création impossible. Réessaie.';
 		creating = false;
+	}
+
+	async function restoreProject() {
+		if (!undoProject) return;
+		const form = new FormData();
+		form.set('kind', 'project');
+		form.set('id', undoProject);
+		const result = await postAction('/trash?/restore', form);
+		if (result.ok) {
+			await goto(resolve('/projects'), { replaceState: true });
+			await invalidateAll();
+		} else error = result.error || 'Restauration impossible. Réessaie.';
 	}
 </script>
 
@@ -57,6 +71,16 @@
 		>
 	</form>
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
+	{#if undoProject}<div
+			role="status"
+			class="flex items-center gap-3 rounded-xl border border-slate-300 bg-white p-3 text-sm"
+		>
+			<span>Project supprimé. Ses Tasks sont autonomes.</span><button
+				type="button"
+				onclick={restoreProject}
+				class="ui-button ui-button-quiet ui-focus">Annuler la suppression</button
+			>
+		</div>{/if}
 	{#if !data.projects.length}
 		<p
 			class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600"

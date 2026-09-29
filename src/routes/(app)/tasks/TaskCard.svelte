@@ -32,7 +32,8 @@
 		task,
 		onStatus,
 		projectOptions = [],
-		onMove
+		onMove,
+		onDelete
 	}: {
 		task: Task;
 		onStatus: (
@@ -43,6 +44,7 @@
 		) => Promise<boolean>;
 		projectOptions?: { id: string; title: string }[];
 		onMove?: (id: string, projectId: string) => Promise<boolean>;
+		onDelete?: (id: string) => Promise<boolean>;
 	} = $props();
 	let moveOptions = $derived([
 		{ value: '', label: 'Aucun' },
@@ -198,6 +200,20 @@
 		busy = false;
 	}
 
+	async function remove() {
+		if (
+			busy ||
+			!window.confirm(
+				`Supprimer la Task « ${task.title} » ? Elle restera dans la corbeille pendant 30 jours.`
+			)
+		)
+			return;
+		if (!(await save())) return;
+		busy = true;
+		if (await onDelete?.(task.id)) editing = false;
+		busy = false;
+	}
+
 	beforeNavigate((navigation) => {
 		if (saving || JSON.stringify(value) !== saved) {
 			if (
@@ -271,6 +287,12 @@
 					>
 				{/if}
 				<Dialog.Trigger class="ui-button ui-button-quiet ui-focus">Modifier</Dialog.Trigger>
+				{#if onDelete}<button
+						type="button"
+						disabled={busy}
+						onclick={remove}
+						class="ui-button ui-button-quiet ui-focus text-red-700">Supprimer</button
+					>{/if}
 			</div>
 		</div>
 	</article>

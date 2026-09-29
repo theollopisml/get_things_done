@@ -263,20 +263,20 @@ slices:
 
   - id: "13"
     name: trash
-    done: false
+    done: true
     tasks:
       - description: "Implémenter soft delete via deleted_at"
-        done: false
+        done: true
       - description: "Créer la Trash"
-        done: false
+        done: true
       - description: "Implémenter Restore"
-        done: false
+        done: true
       - description: "Implémenter Purge avec confirmation"
-        done: false
+        done: true
       - description: "Respecter les règles de conservation/détachement des relations"
-        done: false
+        done: true
       - description: "Ajouter Undo sur les suppressions rapides"
-        done: false
+        done: true
 
   - id: "14"
     name: operations

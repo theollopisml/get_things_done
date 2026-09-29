@@ -6,6 +6,7 @@
 	import House from '@lucide/svelte/icons/house';
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import SearchPalette from '$lib/components/SearchPalette.svelte';
 	import { authClient } from '$lib/auth-client';
@@ -85,6 +86,13 @@
 			<div class="flex shrink-0 items-center gap-2">
 				<SearchPalette />
 				<ThemeToggle />
+				<a
+					href={resolve('/trash')}
+					aria-label="Corbeille"
+					title="Corbeille"
+					class="ui-button ui-button-quiet ui-focus shrink-0 px-3"
+					><Trash2 size={17} aria-hidden="true" /></a
+				>
 				<button
 					type="button"
 					onclick={signOut}

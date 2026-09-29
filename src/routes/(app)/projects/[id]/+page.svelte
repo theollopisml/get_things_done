@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
@@ -31,6 +31,7 @@
 	let confirmOpen = $state(false);
 	let pendingStatus = $state<ProjectStatus | null>(null);
 	let confirmError = $state('');
+	let deleteUndo = $state<{ kind: 'task' | 'checkpoint'; id: string } | null>(null);
 	let newCheckpoint = $state('');
 	let creatingCheckpoint = $state(false);
 	let undo = $state<{ taskId: string; projectId: string | null; position: number | null } | null>(
@@ -91,6 +92,46 @@
 		const result = new FormData();
 		for (const [key, field] of Object.entries(fields)) result.set(key, field);
 		return result;
+	}
+
+	async function deleteItem(kind: 'task' | 'checkpoint', id: string) {
+		const result = await postAction('/trash?/delete', form({ kind, id }));
+		if (result.ok) {
+			deleteUndo = { kind, id };
+			setTimeout(() => {
+				if (deleteUndo?.id === id) deleteUndo = null;
+			}, 8000);
+			await invalidateAll();
+		} else error = result.error || 'Suppression impossible. Réessaie.';
+		return result.ok;
+	}
+
+	async function undoDelete() {
+		if (!deleteUndo) return;
+		const result = await postAction('/trash?/restore', form(deleteUndo));
+		if (result.ok) {
+			deleteUndo = null;
+			await invalidateAll();
+		} else error = result.error || 'Restauration impossible. Réessaie.';
+	}
+
+	async function deleteProject() {
+		if (
+			busy ||
+			!window.confirm(
+				`Supprimer le Project « ${data.project.title} » ? Ses Tasks deviendront autonomes et ses Checkpoints iront dans la corbeille.`
+			)
+		)
+			return;
+		if (!(await save())) return;
+		busy = true;
+		const result = await postAction(
+			'/trash?/delete',
+			form({ kind: 'project', id: data.project.id })
+		);
+		if (result.ok) await goto(resolve(`/projects?undoProject=${data.project.id}`));
+		else error = result.error || 'Suppression impossible. Réessaie.';
+		busy = false;
 	}
 
 	function schedule() {
@@ -355,8 +396,24 @@
 					: 'ui-button-quiet'} ui-focus"
 				>{next === 'active' && data.project.status === 'done' ? 'Rouvrir' : labels[next]}</button
 			>{/each}
+		<button
+			type="button"
+			disabled={busy}
+			onclick={deleteProject}
+			class="ui-button ui-button-quiet ui-focus text-red-700">Supprimer le Project</button
+		>
 	</div>
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
+	{#if deleteUndo}<div
+			role="status"
+			class="flex items-center gap-3 rounded-xl border border-slate-300 bg-white p-3 text-sm"
+		>
+			<span>{deleteUndo.kind === 'task' ? 'Task' : 'Checkpoint'} supprimé.</span><button
+				type="button"
+				onclick={undoDelete}
+				class="ui-button ui-button-quiet ui-focus">Annuler la suppression</button
+			>
+		</div>{/if}
 	<section
 		class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
 		aria-label="Détails du Project"
@@ -475,7 +532,12 @@
 		</form>
 		{#each data.project.checkpoints as checkpoint, index (checkpoint.id)}
 			<div class="space-y-2">
-				<CheckpointCard {checkpoint} projectId={data.project.id} onUpdated={invalidateAll} />
+				<CheckpointCard
+					{checkpoint}
+					projectId={data.project.id}
+					onUpdated={invalidateAll}
+					onDelete={(id) => deleteItem('checkpoint', id)}
+				/>
 				<div class="flex gap-2 pl-1">
 					<button
 						type="button"
@@ -545,7 +607,7 @@
 						{section.label} · {section.tasks.length}
 					</h3>
 					{#each section.tasks as task, index (task.id)}<div class="space-y-2">
-							<TaskCard {task} onStatus={taskStatus} />
+							<TaskCard {task} onStatus={taskStatus} onDelete={(id) => deleteItem('task', id)} />
 							<div class="flex flex-wrap items-center gap-2 pl-1 text-sm">
 								<button
 									type="button"

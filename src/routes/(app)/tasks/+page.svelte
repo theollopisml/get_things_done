@@ -24,6 +24,7 @@
 	let moveUndo = $state<{ id: string; projectId: string | null; position: number | null } | null>(
 		null
 	);
+	let deleteUndo = $state<string | null>(null);
 	let busy = $state(false);
 	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 	let today = new Date().toLocaleDateString('sv-SE');
@@ -185,6 +186,27 @@
 		return result.ok;
 	}
 
+	async function deleteTask(id: string) {
+		const result = await postAction('/trash?/delete', form({ kind: 'task', id }));
+		if (result.ok) {
+			deleteUndo = id;
+			setTimeout(() => {
+				if (deleteUndo === id) deleteUndo = null;
+			}, 8000);
+			await invalidateAll();
+		} else error = result.error || 'Suppression impossible. Réessaie.';
+		return result.ok;
+	}
+
+	async function undoDelete() {
+		if (!deleteUndo) return;
+		const result = await postAction('/trash?/restore', form({ kind: 'task', id: deleteUndo }));
+		if (result.ok) {
+			deleteUndo = null;
+			await invalidateAll();
+		} else error = result.error || 'Restauration impossible. Réessaie.';
+	}
+
 	onMount(() => {
 		clockTimer = setInterval(() => {
 			today = new Date().toLocaleDateString('sv-SE');
@@ -247,6 +269,16 @@
 				>Annuler le déplacement</button
 			>
 		</div>{/if}
+	{#if deleteUndo}<div
+			role="status"
+			class="flex items-center gap-3 rounded-xl border border-slate-300 bg-white p-3 text-sm"
+		>
+			<span>Task supprimée.</span><button
+				type="button"
+				onclick={undoDelete}
+				class="ui-button ui-button-quiet ui-focus">Annuler la suppression</button
+			>
+		</div>{/if}
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
 	{#if !data.history}
 		<div class="flex flex-wrap gap-4">
@@ -291,6 +323,7 @@
 							onStatus={changeStatus}
 							projectOptions={data.projectOptions}
 							onMove={move}
+							onDelete={deleteTask}
 						/>{/each}
 				</section>
 			{/if}
