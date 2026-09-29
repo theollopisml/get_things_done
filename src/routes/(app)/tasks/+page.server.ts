@@ -13,8 +13,9 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions = {
 	create: async ({ request }) => {
+		const form = await request.formData();
 		try {
-			const task = await addTask((await request.formData()).get('title'));
+			const task = await addTask(form.get('title'), form.get('dueDate') ?? '');
 			return { id: task.id };
 		} catch (error) {
 			if (error instanceof InvalidTask) return fail(400, { error: error.message });

@@ -8,6 +8,13 @@
       "when": 1790672992565,
       "tag": "0000_absurd_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790686780298,
+      "tag": "0001_nappy_psylocke",
+      "breakpoints": true
     }
   ]
 }

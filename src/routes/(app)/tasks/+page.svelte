@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
+	import QuickTaskComposer from '$lib/components/QuickTaskComposer.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
 	import { taskGroup, type TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
@@ -9,8 +10,6 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	let newTitle = $state('');
-	let creating = $state(false);
 	let error = $state('');
 	let filter = $state('all');
 	let projectFilter = $state('all');
@@ -67,17 +66,10 @@
 		return data;
 	}
 
-	async function create(event: SubmitEvent) {
-		event.preventDefault();
-		if (creating) return;
-		creating = true;
-		error = '';
-		const result = await postAction('/tasks?/create', form({ title: newTitle }));
-		if (result.ok) {
-			newTitle = '';
-			await invalidateAll();
-		} else error = result.error || 'Création impossible. Réessaie.';
-		creating = false;
+	async function create(title: string, dueDate: string | null) {
+		const result = await postAction('/tasks?/create', form({ title, dueDate: dueDate ?? '' }));
+		if (result.ok) await invalidateAll();
+		return result;
 	}
 
 	async function changeStatus(
@@ -180,24 +172,7 @@
 	</header>
 
 	{#if !data.history}
-		<form
-			onsubmit={create}
-			class="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-		>
-			<label for="new-task" class="sr-only">Nouvelle Task</label>
-			<input
-				id="new-task"
-				name="title"
-				bind:value={newTitle}
-				placeholder="Nouvelle Task…"
-				required
-				maxlength="500"
-				class="ui-focus min-h-11 min-w-48 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
-			/>
-			<button type="submit" disabled={creating} class="ui-button ui-button-primary ui-focus"
-				>{creating ? 'Création…' : 'Ajouter'}</button
-			>
-		</form>
+		<QuickTaskComposer id="new-task" label="Nouvelle Task" onCreate={create} />
 	{/if}
 	{#if undo}<div
 			role="status"

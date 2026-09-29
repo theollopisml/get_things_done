@@ -9,12 +9,18 @@ export class InvalidProjectTask extends Error {}
 
 const id = z.uuid();
 
-export async function addProjectTask(projectId: unknown, title: unknown) {
+export async function addProjectTask(
+	projectId: unknown,
+	title: unknown,
+	dueDateValue: unknown = ''
+) {
 	const parsedId = id.safeParse(projectId);
 	const parsedTitle = z.string().trim().min(1).max(500).safeParse(title);
 	if (!parsedId.success || !parsedTitle.success)
 		throw new InvalidProjectTask('Saisis un titre pour la Task.');
-	return createProjectTask(parsedId.data, parsedTitle.data);
+	const parsedDate = z.union([z.iso.date(), z.literal('')]).safeParse(dueDateValue);
+	if (!parsedDate.success) throw new InvalidProjectTask('Date d’échéance invalide.');
+	return createProjectTask(parsedId.data, parsedTitle.data, parsedDate.data || null);
 }
 
 export async function moveTaskToProject(taskId: unknown, projectId: unknown, position?: unknown) {

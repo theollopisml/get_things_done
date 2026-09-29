@@ -58,8 +58,9 @@ export const actions = {
 		}
 	},
 	createTask: async ({ request, params }) => {
+		const form = await request.formData();
 		try {
-			const task = await addProjectTask(params.id, (await request.formData()).get('title'));
+			const task = await addProjectTask(params.id, form.get('title'), form.get('dueDate') ?? '');
 			return task ? { id: task.id } : fail(404, { error: 'Project introuvable.' });
 		} catch (cause) {
 			if (cause instanceof InvalidProjectTask) return fail(400, { error: cause.message });

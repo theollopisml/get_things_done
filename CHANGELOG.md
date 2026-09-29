@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `/today`, `/thisweek`, `/thismonth`, `/thisyear`, and `/date` shortcuts to the Collector and quick Task creation, with a removable due-date badge and native calendar picker.
+- Save optional due dates when creating Tasks from the Tasks list or a Project.
+- Preserve a Collector due date through Jev classification, retry, manual review, and Task or Project type correction.
 - Show Late, In Progress, and Today Tasks beneath the Home Collector, with quick actions, Undo, and local time updates.
 - Show Home counts for Jev classifications awaiting review and failed captures.
 - Keep each Home Task in one section while honoring paused and closed Project exposure rules.

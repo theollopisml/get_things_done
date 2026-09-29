@@ -1,0 +1,1 @@
+ALTER TABLE "entries" ADD COLUMN "requested_due_date" date;

@@ -108,6 +108,7 @@ export const entries = pgTable(
 		id: uuid('id').defaultRandom().primaryKey(),
 		captureRequestId: uuid('capture_request_id').unique(),
 		rawContent: text('raw_content').notNull(),
+		requestedDueDate: date('requested_due_date'),
 		classificationState: text('classification_state', {
 			enum: ['pending', 'failed', 'classified']
 		})

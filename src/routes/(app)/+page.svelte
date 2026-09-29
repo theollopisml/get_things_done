@@ -3,20 +3,44 @@
 	import { resolve } from '$app/paths';
 	import { postAction } from '$lib/post-action';
 	import { groupHomeTasks } from '$lib/domain/home';
+	import {
+		dueShortcutLabels,
+		dueShortcuts,
+		shortcutDueDate,
+		takeDueCommand,
+		type DueShortcut
+	} from '$lib/domain/quick-task-date';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import TaskCard from './tasks/TaskCard.svelte';
 	import type { PageData } from './$types';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	type Notice = { id: string; message: string; state: 'pending' | 'classified' | 'failed' };
 
 	let { data }: { data: PageData } = $props();
 	let content = $state('');
+	let dueDate = $state<string | null>(null);
+	let dueLabel = $state('');
+	let calendarOpen = $state(false);
+	let dateInput = $state<HTMLInputElement>();
+	let matchingCommands = $derived(
+		content.startsWith('/')
+			? [...dueShortcuts, 'date' as const].filter((command) => command.startsWith(content.slice(1)))
+			: []
+	);
+	let formattedDate = $derived(
+		dueDate
+			? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(
+					new Date(`${dueDate}T00:00:00`)
+				)
+			: ''
+	);
 	let saving = $state(false);
 	let error = $state('');
 	let requestKey = $state<string | null>(null);
 	let requestContent = $state('');
+	let requestDueDate = $state<string | null>(null);
 	let notices = $state<Notice[]>([]);
 	let form: HTMLFormElement;
 	let entryButton: HTMLButtonElement;
@@ -37,6 +61,54 @@
 		{ key: 'in_progress', label: 'In Progress', empty: 'Aucune Task en cours.' },
 		{ key: 'today', label: 'Today', empty: 'Aucune Task prévue aujourd’hui.' }
 	] as const;
+
+	function chooseDueShortcut(shortcut: DueShortcut) {
+		dueDate = shortcutDueDate(shortcut, new Date());
+		dueLabel = dueShortcutLabels[shortcut];
+		calendarOpen = false;
+		error = '';
+	}
+
+	async function openCalendar() {
+		calendarOpen = true;
+		await tick();
+		dateInput?.focus();
+		try {
+			dateInput?.showPicker();
+		} catch {
+			// The visible date field remains available when the native picker cannot open.
+		}
+	}
+
+	function selectDueCommand(command: DueShortcut | 'date') {
+		if (content.startsWith('/')) content = content.replace(/^\/\S* ?/, '');
+		if (command === 'date') void openCalendar();
+		else {
+			chooseDueShortcut(command);
+			form.querySelector('textarea')?.focus();
+		}
+	}
+
+	function onCaptureInput(event: Event) {
+		const input = event.currentTarget as HTMLTextAreaElement;
+		const parsed = takeDueCommand(input.value);
+		if (parsed) {
+			input.value = parsed.rest;
+			content = parsed.rest;
+			if (parsed.command === 'date') void openCalendar();
+			else chooseDueShortcut(parsed.command);
+		} else content = input.value;
+		error = '';
+	}
+
+	function selectDueDate(event: Event) {
+		const value = (event.currentTarget as HTMLInputElement).value;
+		if (!value) return;
+		dueDate = value;
+		dueLabel = 'Échéance';
+		calendarOpen = false;
+		form.querySelector('textarea')?.focus();
+	}
 
 	function updateClock() {
 		const now = new Date();
@@ -205,19 +277,29 @@
 		saving = true;
 		error = '';
 		const submitted = content;
-		const key = requestKey && requestContent === submitted ? requestKey : crypto.randomUUID();
+		const selectedDueDate = dueDate;
+		const key =
+			requestKey && requestContent === submitted && requestDueDate === selectedDueDate
+				? requestKey
+				: crypto.randomUUID();
 		requestKey = key;
 		requestContent = submitted;
+		requestDueDate = selectedDueDate;
 		const data = new FormData();
 		data.set('rawContent', submitted);
 		data.set('kind', 'entry');
 		data.set('requestId', key);
+		data.set('dueDate', selectedDueDate ?? '');
 		const result = await postAction('/?/capture', data);
 		if (result.ok) {
-			if (content === submitted) {
+			if (content === submitted && dueDate === selectedDueDate) {
 				content = '';
+				dueDate = null;
+				dueLabel = '';
+				calendarOpen = false;
 				requestKey = null;
 				requestContent = '';
+				requestDueDate = null;
 			}
 			const id = result.data?.entryId;
 			if (typeof id === 'string') {
@@ -265,9 +347,16 @@
 
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+			const command = /^\/(today|thisweek|thismonth|thisyear|date)$/.exec(content);
+			if (command) {
+				event.preventDefault();
+				selectDueCommand(command[1] as DueShortcut | 'date');
+				return;
+			}
 			event.preventDefault();
 			form.requestSubmit(entryButton);
 		}
+		if (event.key === 'Escape') calendarOpen = false;
 	}
 </script>
 
@@ -316,14 +405,38 @@
 			method="POST"
 			action="?/capture"
 			onsubmit={submit}
-			class="rounded-xl border border-slate-300 bg-white p-2 transition-[border-color,box-shadow] duration-150 focus-within:border-slate-500 focus-within:shadow-[0_0_0_3px_rgba(148,163,184,0.14)]"
+			class="relative rounded-xl border border-slate-300 bg-white p-2 transition-[border-color,box-shadow] duration-150 focus-within:border-slate-500 focus-within:shadow-[0_0_0_3px_rgba(148,163,184,0.14)]"
 		>
 			<label for="capture" class="sr-only">Qu’est-ce qui te passe par la tête ?</label>
 			<div class="flex items-center gap-2">
+				{#if dueDate}
+					<span
+						class="flex max-w-[45vw] min-w-0 shrink-0 items-center rounded-md bg-slate-100 text-xs text-slate-700"
+					>
+						<button
+							type="button"
+							class="ui-focus min-h-9 min-w-0 truncate rounded-l-md px-2"
+							aria-label={`Modifier l’échéance ${dueLabel} ${formattedDate}`}
+							onclick={openCalendar}>{dueLabel} · {formattedDate}</button
+						>
+						<button
+							type="button"
+							class="ui-focus min-h-9 rounded-r-md px-2"
+							aria-label="Retirer l’échéance"
+							onclick={() => {
+								dueDate = null;
+								dueLabel = '';
+								calendarOpen = false;
+								form.querySelector('textarea')?.focus();
+							}}>×</button
+						>
+					</span>
+				{/if}
 				<textarea
 					id="capture"
 					name="rawContent"
-					bind:value={content}
+					value={content}
+					oninput={onCaptureInput}
 					onkeydown={onKeydown}
 					placeholder="Qu’est-ce qui te passe par la tête ?"
 					rows="1"
@@ -342,6 +455,51 @@
 				</button>
 			</div>
 			{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
+			{#if matchingCommands.length}
+				<div
+					class="absolute top-full left-2 z-20 mt-1 flex w-[min(18rem,calc(100vw-2rem))] flex-col rounded-xl border border-slate-300 bg-white p-1 shadow-lg"
+					aria-label="Raccourcis d’échéance"
+				>
+					{#each matchingCommands as command (command)}
+						<button
+							type="button"
+							class="ui-focus flex min-h-10 items-center justify-between rounded-lg px-3 text-left text-sm hover:bg-slate-100"
+							onclick={() => selectDueCommand(command)}
+						>
+							<span>/{command}</span>
+							<span class="text-slate-500"
+								>{command === 'date' ? 'Choisir une date' : dueShortcutLabels[command]}</span
+							>
+						</button>
+					{/each}
+				</div>
+			{/if}
+			{#if calendarOpen}
+				<div
+					class="absolute top-full left-2 z-20 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-slate-300 bg-white p-4 shadow-lg"
+				>
+					<div class="mb-3 flex items-center justify-between gap-2">
+						<label for="capture-due-date" class="text-sm font-medium">Choisir une échéance</label>
+						<button
+							type="button"
+							class="ui-focus rounded-lg px-2 text-slate-500 hover:bg-slate-100"
+							aria-label="Fermer le calendrier"
+							onclick={() => {
+								calendarOpen = false;
+								form.querySelector('textarea')?.focus();
+							}}>×</button
+						>
+					</div>
+					<input
+						bind:this={dateInput}
+						id="capture-due-date"
+						type="date"
+						value={dueDate ?? ''}
+						onchange={selectDueDate}
+						class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+					/>
+				</div>
+			{/if}
 		</form>
 		<p class="text-xs text-slate-500">
 			Entrée pour capturer · Maj + Entrée pour une nouvelle ligne

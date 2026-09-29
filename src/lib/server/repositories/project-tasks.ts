@@ -4,7 +4,11 @@ import { projects, tasks } from '$lib/server/db/schema';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export async function createProjectTask(projectId: string, title: string) {
+export async function createProjectTask(
+	projectId: string,
+	title: string,
+	dueDate: string | null = null
+) {
 	return db.transaction(async (tx) => {
 		const [project] = await tx
 			.select({ id: projects.id })
@@ -15,7 +19,7 @@ export async function createProjectTask(projectId: string, title: string) {
 		const existing = await orderedTasks(tx, projectId);
 		const [task] = await tx
 			.insert(tasks)
-			.values({ projectId, title, position: existing.length })
+			.values({ projectId, title, dueDate, position: existing.length })
 			.returning();
 		return task;
 	});

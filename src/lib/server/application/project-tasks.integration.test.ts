@@ -6,6 +6,30 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Project Task relations', () =>
 		await client.end();
 	});
 
+	it('creates a Project Task with an optional due date', async () => {
+		const { db } = await import('$lib/server/db');
+		const { projects, tasks } = await import('$lib/server/db/schema');
+		const { addProjectTask, InvalidProjectTask } = await import('./project-tasks');
+		const { eq } = await import('drizzle-orm');
+		const [project] = await db.insert(projects).values({ title: 'Projet daté' }).returning();
+		let taskId: string | null = null;
+		try {
+			await expect(addProjectTask(project.id, 'Date invalide', 'hier')).rejects.toBeInstanceOf(
+				InvalidProjectTask
+			);
+			const created = await addProjectTask(project.id, 'Action datée', '2026-12-31');
+			taskId = created?.id ?? null;
+			expect(created).toMatchObject({
+				projectId: project.id,
+				title: 'Action datée',
+				dueDate: '2026-12-31'
+			});
+		} finally {
+			if (taskId) await db.delete(tasks).where(eq(tasks.id, taskId));
+			await db.delete(projects).where(eq(projects.id, project.id));
+		}
+	});
+
 	it('moves, detaches, restores and reorders Tasks within Projects', async () => {
 		const { db } = await import('$lib/server/db');
 		const { checkpoints, projects, tasks } = await import('$lib/server/db/schema');

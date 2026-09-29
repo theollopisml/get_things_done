@@ -239,6 +239,9 @@
 						rows="4"
 						class="ui-focus w-full resize-y rounded-lg border border-slate-200 p-3 text-sm leading-6"
 					></textarea>
+					{#if entry.requestedDueDate}
+						<p class="mt-2 text-xs text-slate-600">Échéance choisie · {entry.requestedDueDate}</p>
+					{/if}
 					{#if entry.error}<p role="alert" class="mt-2 text-sm text-red-700">{entry.error}</p>{/if}
 					<div class="mt-4 flex flex-wrap gap-2">
 						<button

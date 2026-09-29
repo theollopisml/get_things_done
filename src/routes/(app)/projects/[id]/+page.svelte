@@ -4,6 +4,7 @@
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import QuickTaskComposer from '$lib/components/QuickTaskComposer.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
 	import type { ProjectStatus } from '$lib/domain/projects';
 	import type { TaskStatus } from '$lib/domain/tasks';
@@ -29,8 +30,6 @@
 	let confirmOpen = $state(false);
 	let pendingStatus = $state<ProjectStatus | null>(null);
 	let confirmError = $state('');
-	let newTask = $state('');
-	let creatingTask = $state(false);
 	let newCheckpoint = $state('');
 	let creatingCheckpoint = $state(false);
 	let undo = $state<{ taskId: string; projectId: string | null; position: number | null } | null>(
@@ -143,17 +142,15 @@
 		busy = false;
 	}
 
-	async function createTask(event: SubmitEvent) {
-		event.preventDefault();
-		if (creatingTask || !(await save())) return;
-		creatingTask = true;
+	async function createTask(title: string, dueDate: string | null) {
+		if (!(await save())) return { ok: false, error: error || 'Sauvegarde impossible. Réessaie.' };
 		error = '';
-		const response = await postAction(`${projectPath}?/createTask`, form({ title: newTask }));
-		if (response.ok) {
-			newTask = '';
-			await invalidateAll();
-		} else error = response.error || 'Création impossible. Réessaie.';
-		creatingTask = false;
+		const response = await postAction(
+			`${projectPath}?/createTask`,
+			form({ title, dueDate: dueDate ?? '' })
+		);
+		if (response.ok) await invalidateAll();
+		return response;
 	}
 
 	async function createCheckpoint(event: SubmitEvent) {
@@ -434,21 +431,11 @@
 			<h2 class="text-xl font-semibold text-slate-950">Tasks</h2>
 			<p class="mt-1 text-sm text-slate-600">L’ordre ici n’influence pas les vues d’exécution.</p>
 		</div>
-		<form
-			onsubmit={createTask}
-			class="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-		>
-			<label for="new-project-task" class="sr-only">Nouvelle Task dans ce Project</label><input
-				id="new-project-task"
-				bind:value={newTask}
-				placeholder="Nouvelle Task…"
-				required
-				maxlength="500"
-				class="ui-focus min-h-11 min-w-48 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
-			/><button type="submit" disabled={creatingTask} class="ui-button ui-button-primary ui-focus"
-				>{creatingTask ? 'Création…' : 'Ajouter'}</button
-			>
-		</form>
+		<QuickTaskComposer
+			id="new-project-task"
+			label="Nouvelle Task dans ce Project"
+			onCreate={createTask}
+		/>
 		{#if undo}<div
 				role="status"
 				class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-white p-3 text-sm"

@@ -111,6 +111,7 @@ workspaces, memberships, priorities, dépendances.
 ### entries
 
 `id`, `capture_request_id UUID? UNIQUE`, `raw_content TEXT`,
+`requested_due_date DATE?`,
 `classification_state(pending|failed|classified)`,
 `classification_source(jev|manual)?`, `task_id?`, `project_id?`,
 `classified_at?`, `reviewed_at?`, `jev_model?`,
@@ -131,6 +132,11 @@ d'idempotence, y compris pour un choix manuel. Les anciennes Entries
 peuvent garder `NULL` ; aucune capture historique déjà supprimée lors
 d'une ancienne classification ne peut être reconstituée. Pas de
 `source_entry_id` sur les deux tables cibles.
+
+`requested_due_date` est une intention facultative de la capture, pas
+une date d'exécution de l'Entry. Le navigateur retire le préfixe slash
+du texte, calcule la date locale et envoie les deux valeurs séparément.
+La clé d'idempotence doit retrouver le même texte et la même date.
 
 Les requêtes ordinaires de la section « Non classées » de Revue ne prennent que les Entries
 `pending|failed` non supprimées ; la Revue prend les Entries
@@ -459,12 +465,14 @@ description. Jev ne génère ni texte, ni date, ni statut métier.
 ### Persistance et relance
 
 Le cas d'usage de capture crée d'abord une Entry avec
-`capture_request_id` et répond dès cette persistance confirmée avec
+`capture_request_id` et l'éventuelle `requested_due_date`, puis répond dès cette persistance confirmée avec
 `saved_pending_classification`. Il lance Jev dans le processus serveur,
 hors transaction et sans bloquer la réponse HTTP. Une fois la décision
 obtenue, il verrouille l'Entry et crée l'objet ainsi que son éventuel
 lien dans une transaction qui renseigne la FK cible et
 `classification_state=classified`. Une
+date demandée est transférée à la `due_date` de la Task ou du Project
+dans cette transaction ; la classification manuelle fait de même. La
 relance avec la même clé retrouve l'Entry existante et, si elle est
 encore en attente ou en échec, peut reprendre la classification sans
 créer un second objet, même si la réponse HTTP précédente s'est perdue. La
@@ -490,8 +498,8 @@ une transaction ; ces Entries ne figurent pas parmi les classifications Jev.
 `confirmJevClassification` renseigne `reviewed_at` sans modifier
 l'objet. `correctJevClassification` verrouille l'Entry et l'objet lié.
 Une correction de rattachement valide le parent et les invariants du
-domaine. Une correction de type crée le nouvel objet avec le titre et la
-description courants, met à jour l'Entry, puis soft-delete l'ancien
+domaine. Une correction de type crée le nouvel objet avec le titre, la
+description et la `due_date` courants, met à jour l'Entry, puis soft-delete l'ancien
 objet dans la même transaction. Elle est limitée aux objets issus de
 Jev depuis la Revue ; elle échoue clairement si l'ancien objet porte des
 enfants ou des champs spécifiques qui seraient perdus. Aucun enfant

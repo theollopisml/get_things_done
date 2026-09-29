@@ -48,6 +48,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Project routes', () => {
 			).toEqual({ saved: true });
 			const taskForm = new FormData();
 			taskForm.set('title', 'Première Task');
+			taskForm.set('dueDate', '2026-10-15');
 			const task = await detail.actions.createTask({
 				params: { id },
 				request: new Request(`http://localhost/projects/${id}?/createTask`, {
@@ -64,6 +65,9 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Project routes', () => {
 			expect(current.project.toBuild).toBe(false);
 			expect(current.project.taskCount).toBe(1);
 			expect(current.project.tasks[0].id).toBe(task.id);
+			expect((await db.select().from(tasks).where(eq(tasks.id, task.id)))[0].dueDate).toBe(
+				'2026-10-15'
+			);
 			const statusForm = new FormData();
 			statusForm.set('status', 'done');
 			expect(

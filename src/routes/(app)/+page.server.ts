@@ -34,7 +34,8 @@ export const actions = {
 			return await submitCollectorCapture(
 				rawContent,
 				kind,
-				form.get('requestId') ?? crypto.randomUUID()
+				form.get('requestId') ?? crypto.randomUUID(),
+				form.get('dueDate') ?? ''
 			);
 		} catch (error) {
 			if (error instanceof InvalidCapture) return fail(400, { error: error.message });

@@ -12,9 +12,14 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('one-off Tasks with PostgreSQL'
 		const { eq } = await import('drizzle-orm');
 		const { addTask, changeTaskStatus, editTask, InvalidTask } = await import('./tasks');
 		const { listTasks } = await import('$lib/server/repositories/tasks');
-		const created = await addTask('  Préparer le dossier  ');
+		await expect(addTask('Date invalide', '2026-02-30')).rejects.toBeInstanceOf(InvalidTask);
+		const created = await addTask('  Préparer le dossier  ', '2026-10-05');
 		try {
-			expect(created).toMatchObject({ title: 'Préparer le dossier', status: 'todo' });
+			expect(created).toMatchObject({
+				title: 'Préparer le dossier',
+				status: 'todo',
+				dueDate: '2026-10-05'
+			});
 			await expect(
 				editTask(created.id, {
 					title: 'Préparer le dossier',

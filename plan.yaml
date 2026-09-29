@@ -189,6 +189,25 @@ slices:
       - description: "Respecter les règles PAUSED/DONE/CANCELLED des Projects"
         done: true
 
+  - id: "09a"
+    name: quick-task-due-dates
+    done: true
+    tasks:
+      - description: "Calculer les échéances locales pour /today, /thisweek, /thismonth et /thisyear"
+        done: true
+      - description: "Afficher un badge d’échéance lors de la création rapide d’une Task"
+        done: true
+      - description: "Ouvrir un calendrier natif avec /date pour choisir l’échéance"
+        done: true
+      - description: "Persister l’échéance depuis Tasks et le détail Project avec validation serveur"
+        done: true
+      - description: "Conserver l’échéance sur l’Entry du Collector avec une migration, puis l’appliquer après Jev ou classement manuel"
+        done: true
+      - description: "Afficher les échéances des captures dans la Revue et les préserver lors d’une correction de type"
+        done: true
+      - description: "Tester les bornes calendaires, la création datée, l’idempotence et les relances avec PostgreSQL"
+        done: true
+
   - id: "10"
     name: recurrence
     done: false

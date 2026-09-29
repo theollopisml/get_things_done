@@ -41,6 +41,8 @@ export async function listJevReviewEntries(onlyUnreviewed = false) {
 			projectId: entries.projectId,
 			taskTitle: tasks.title,
 			projectTitle: projects.title,
+			taskDueDate: tasks.dueDate,
+			projectDueDate: projects.dueDate,
 			taskParentId: tasks.projectId,
 			taskDeletedAt: tasks.deletedAt,
 			projectDeletedAt: projects.deletedAt,
@@ -67,6 +69,7 @@ export async function listJevReviewEntries(onlyUnreviewed = false) {
 		reviewedAt: row.reviewedAt,
 		kind: (row.taskId ? 'task' : 'project') as ClassifiedKind,
 		title: row.taskTitle ?? row.projectTitle ?? 'Objet introuvable',
+		dueDate: row.taskId ? row.taskDueDate : row.projectDueDate,
 		parentTitle: row.taskId ? row.taskParentTitle : null,
 		parentId: row.taskId ? row.taskParentId : null,
 		objectDeleted: Boolean(row.taskDeletedAt ?? row.projectDeletedAt)
@@ -176,7 +179,7 @@ export async function correctJevClassification(id: string, kind: ClassifiedKind)
 		}
 		if (linkedKind(entry) === kind) return 'same_kind' as const;
 
-		let source: { title: string; description: string | null };
+		let source: { title: string; description: string | null; dueDate: string | null };
 		if (entry.taskId) {
 			const [task] = await tx.select().from(tasks).where(eq(tasks.id, entry.taskId)).for('update');
 			if (!task || task.deletedAt) return 'object_unavailable' as const;
@@ -186,7 +189,6 @@ export async function correctJevClassification(id: string, kind: ClassifiedKind)
 				task.status !== 'todo' ||
 				task.scheduledDate ||
 				task.scheduledTime ||
-				task.dueDate ||
 				task.dueTime ||
 				task.recurrenceRule ||
 				task.recurrenceAnchorDate ||
@@ -218,7 +220,6 @@ export async function correctJevClassification(id: string, kind: ClassifiedKind)
 			if (
 				project.status !== 'planned' ||
 				project.startDate ||
-				project.dueDate ||
 				project.startedAt ||
 				project.completedAt
 			) {
@@ -229,7 +230,11 @@ export async function correctJevClassification(id: string, kind: ClassifiedKind)
 			return 'not_found' as const;
 		}
 
-		const values = { title: source.title, description: source.description };
+		const values = {
+			title: source.title,
+			description: source.description,
+			dueDate: source.dueDate
+		};
 		let targetId: string;
 		if (kind === 'task') {
 			const [created] = await tx.insert(tasks).values(values).returning({ id: tasks.id });
@@ -278,10 +283,14 @@ export async function createEntry(rawContent: string) {
 	return entry;
 }
 
-export async function getOrCreateCaptureEntry(rawContent: string, requestId: string) {
+export async function getOrCreateCaptureEntry(
+	rawContent: string,
+	requestId: string,
+	requestedDueDate: string | null = null
+) {
 	const [created] = await db
 		.insert(entries)
-		.values({ rawContent, captureRequestId: requestId })
+		.values({ rawContent, captureRequestId: requestId, requestedDueDate })
 		.onConflictDoNothing({ target: entries.captureRequestId })
 		.returning();
 	if (created) return created;
@@ -293,7 +302,8 @@ async function insertClassified(
 	tx: Transaction,
 	kind: ClassifiedKind,
 	rawContent: string,
-	relationId?: string | null
+	relationId?: string | null,
+	dueDate: string | null = null
 ) {
 	const { title, description } = splitCapture(rawContent);
 	switch (kind) {
@@ -313,14 +323,14 @@ async function insertClassified(
 				: [];
 			const [task] = await tx
 				.insert(tasks)
-				.values({ title, description, projectId: parent?.id })
+				.values({ title, description, projectId: parent?.id, dueDate })
 				.returning({ id: tasks.id });
 			return task;
 		}
 		case 'project': {
 			const [project] = await tx
 				.insert(projects)
-				.values({ title, description })
+				.values({ title, description, dueDate })
 				.returning({ id: projects.id });
 			return project;
 		}
@@ -366,7 +376,7 @@ export async function classifyCollectorManually(
 		const [entry] = await tx.select().from(entries).where(eq(entries.id, id)).for('update');
 		if (!entry || entry.deletedAt || entry.rawContent !== rawContent) return null;
 		if (entry.classificationState === 'classified') return linkedKind(entry);
-		const created = await insertClassified(tx, kind, rawContent);
+		const created = await insertClassified(tx, kind, rawContent, null, entry.requestedDueDate);
 		await markClassified(tx, id, kind, created.id);
 		return kind;
 	});
@@ -386,7 +396,8 @@ export async function applyJevClassification(
 			tx,
 			decision.kind,
 			entry.rawContent,
-			decision.relationId
+			decision.relationId,
+			entry.requestedDueDate
 		);
 		await tx
 			.update(entries)
@@ -461,7 +472,13 @@ export async function classifyEntry(id: string, kind: ClassifiedKind) {
 			)
 			.for('update');
 		if (!entry) return null;
-		const created = await insertClassified(tx, kind, entry.rawContent);
+		const created = await insertClassified(
+			tx,
+			kind,
+			entry.rawContent,
+			null,
+			entry.requestedDueDate
+		);
 		await markClassified(tx, id, kind, created.id);
 		return created;
 	});

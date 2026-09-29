@@ -98,6 +98,91 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture classification with Po
 		}
 	});
 
+	it('keeps a Collector due date across Jev, idempotent capture, and manual recovery', async () => {
+		const { db } = await import('$lib/server/db');
+		const { entries, projects, tasks } = await import('$lib/server/db/schema');
+		const { eq, inArray } = await import('drizzle-orm');
+		const { getOrCreateCaptureEntry } = await import('$lib/server/repositories/captures');
+		const { InvalidCapture, processEntry, retryJevClassification, submitCollectorCapture } =
+			await import('./captures');
+		const requestId = crypto.randomUUID();
+		const taskEntry = await getOrCreateCaptureEntry(
+			'Préparer la présentation',
+			requestId,
+			'2026-10-05'
+		);
+		const [projectEntry, failedEntry] = await db
+			.insert(entries)
+			.values([
+				{
+					rawContent: 'Refaire le salon',
+					classificationState: 'failed',
+					requestedDueDate: '2026-10-31'
+				},
+				{
+					rawContent: 'Envoyer le dossier',
+					classificationState: 'failed',
+					requestedDueDate: '2026-10-07'
+				}
+			])
+			.returning();
+		const entryIds = [taskEntry.id, projectEntry.id, failedEntry.id];
+		try {
+			await expect(
+				submitCollectorCapture('Date invalide', 'entry', crypto.randomUUID(), '2026-02-30')
+			).rejects.toBeInstanceOf(InvalidCapture);
+			expect(
+				await getOrCreateCaptureEntry('Préparer la présentation', requestId, '2026-10-05')
+			).toMatchObject({ id: taskEntry.id, requestedDueDate: '2026-10-05' });
+			expect(
+				await retryJevClassification(taskEntry.id, {
+					client: { choose: async () => choice('task', { task: 0.95, project: 0.05 }) },
+					loadCandidates: async () => []
+				})
+			).toMatchObject({ status: 'saved_and_classified', kind: 'task' });
+			const [classifiedTaskEntry] = await db
+				.select()
+				.from(entries)
+				.where(eq(entries.id, taskEntry.id));
+			expect(
+				(await db.select().from(tasks).where(eq(tasks.id, classifiedTaskEntry.taskId!)))[0]
+			).toMatchObject({ title: 'Préparer la présentation', dueDate: '2026-10-05' });
+			expect(
+				await submitCollectorCapture('Préparer la présentation', 'entry', requestId, '2026-10-05')
+			).toMatchObject({ status: 'saved_and_classified', entryId: taskEntry.id });
+			await expect(
+				submitCollectorCapture('Préparer la présentation', 'entry', requestId, '2026-10-06')
+			).rejects.toBeInstanceOf(InvalidCapture);
+
+			await retryJevClassification(projectEntry.id, {
+				client: { choose: async () => choice('project', { task: 0.05, project: 0.95 }) },
+				loadCandidates: async () => []
+			});
+			const [classifiedProjectEntry] = await db
+				.select()
+				.from(entries)
+				.where(eq(entries.id, projectEntry.id));
+			expect(
+				(
+					await db.select().from(projects).where(eq(projects.id, classifiedProjectEntry.projectId!))
+				)[0]
+			).toMatchObject({ title: 'Refaire le salon', dueDate: '2026-10-31' });
+
+			const manual = await processEntry(failedEntry.id, 'task');
+			expect((await db.select().from(tasks).where(eq(tasks.id, manual!.id)))[0]).toMatchObject({
+				title: 'Envoyer le dossier',
+				dueDate: '2026-10-07'
+			});
+		} finally {
+			const linked = await db.select().from(entries).where(inArray(entries.id, entryIds));
+			await db.delete(entries).where(inArray(entries.id, entryIds));
+			for (const entry of linked) {
+				if (entry.taskId) await db.delete(tasks).where(eq(tasks.id, entry.taskId));
+				if (entry.projectId) await db.delete(projects).where(eq(projects.id, entry.projectId));
+			}
+		}
+	});
+
 	it('corrects a reviewed type while preserving text and protects Project children', async () => {
 		const { db } = await import('$lib/server/db');
 		const { checkpoints, entries, projects, tasks } = await import('$lib/server/db/schema');
@@ -105,7 +190,7 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture classification with Po
 		const { eq } = await import('drizzle-orm');
 		const [task] = await db
 			.insert(tasks)
-			.values({ title: 'Titre corrigé', description: 'Détail' })
+			.values({ title: 'Titre corrigé', description: 'Détail', dueDate: '2026-10-05' })
 			.returning();
 		const [entry] = await db
 			.insert(entries)
@@ -133,7 +218,8 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture classification with Po
 				(await db.select().from(projects).where(eq(projects.id, projectId!)))[0]
 			).toMatchObject({
 				title: 'Titre corrigé',
-				description: 'Détail'
+				description: 'Détail',
+				dueDate: '2026-10-05'
 			});
 			const [child] = await db.insert(tasks).values({ title: 'Enfant', projectId }).returning();
 			try {
@@ -150,15 +236,19 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('capture classification with Po
 			} finally {
 				await db.delete(checkpoints).where(eq(checkpoints.id, checkpoint.id));
 			}
-			await db.update(projects).set({ dueDate: '2026-10-01' }).where(eq(projects.id, projectId!));
+			await db.update(projects).set({ startDate: '2026-10-01' }).where(eq(projects.id, projectId!));
 			expect(await correctReviewType(entry.id, 'task')).toBe('data_conflict');
-			await db.update(projects).set({ dueDate: null }).where(eq(projects.id, projectId!));
+			await db
+				.update(projects)
+				.set({ startDate: null, dueDate: '2026-10-15' })
+				.where(eq(projects.id, projectId!));
 			expect(await correctReviewType(entry.id, 'task')).toBe('updated');
 			const [asTask] = await db.select().from(entries).where(eq(entries.id, entry.id));
 			nextTaskId = asTask.taskId;
 			expect((await db.select().from(tasks).where(eq(tasks.id, nextTaskId!)))[0]).toMatchObject({
 				title: 'Titre corrigé',
-				description: 'Détail'
+				description: 'Détail',
+				dueDate: '2026-10-15'
 			});
 		} finally {
 			await db.delete(entries).where(eq(entries.id, entry.id));

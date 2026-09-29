@@ -65,6 +65,7 @@ export async function submitCollectorCapture(
 	rawContent: unknown,
 	kind: unknown,
 	requestId: unknown,
+	dueDateValue: unknown = '',
 	dependencies: JevDependencies = {}
 ) {
 	const input = captureInput.extend({ requestId: z.uuid() }).safeParse({
@@ -73,9 +74,17 @@ export async function submitCollectorCapture(
 		requestId
 	});
 	if (!input.success) throw new InvalidCapture('Capture ou clé de requête invalide.');
+	const parsedDate = z.union([z.iso.date(), z.literal('')]).safeParse(dueDateValue);
+	if (!parsedDate.success) throw new InvalidCapture('Date d’échéance invalide.');
 	const { rawContent: text, kind: selectedKind, requestId: key } = input.data;
-	const entry = await getOrCreateCaptureEntry(text, key);
-	if (!entry || entry.deletedAt || entry.rawContent !== text) {
+	const requestedDueDate = parsedDate.data || null;
+	const entry = await getOrCreateCaptureEntry(text, key, requestedDueDate);
+	if (
+		!entry ||
+		entry.deletedAt ||
+		entry.rawContent !== text ||
+		entry.requestedDueDate !== requestedDueDate
+	) {
 		throw new InvalidCapture('Cette clé appartient à une autre capture.');
 	}
 	if (entry.classificationState === 'classified') {

@@ -27,8 +27,8 @@ export async function listTasks(history: boolean) {
 		.map(({ task, projectTitle, projectStatus }) => ({ ...task, projectTitle, projectStatus }));
 }
 
-export async function createTask(title: string) {
-	const [task] = await db.insert(tasks).values({ title }).returning();
+export async function createTask(title: string, dueDate: string | null = null) {
+	const [task] = await db.insert(tasks).values({ title, dueDate }).returning();
 	return task;
 }
 

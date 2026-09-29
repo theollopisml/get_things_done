@@ -19,10 +19,12 @@ const edit = z.object({
 });
 const status = z.enum(['todo', 'in_progress', 'done', 'cancelled']);
 
-export async function addTask(value: unknown) {
+export async function addTask(value: unknown, dueDateValue: unknown = '') {
 	const parsed = title.safeParse(value);
 	if (!parsed.success) throw new InvalidTask('Saisis un titre pour la Task.');
-	return createTask(parsed.data);
+	const parsedDate = optionalDate.safeParse(dueDateValue);
+	if (!parsedDate.success) throw new InvalidTask('Date d’échéance invalide.');
+	return createTask(parsed.data, parsedDate.data);
 }
 
 export async function editTask(taskId: unknown, fields: Record<string, unknown>) {

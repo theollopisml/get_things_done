@@ -185,6 +185,7 @@ Une Entry n’est pas une Task ou un Project et ne remplace jamais ces objets m�
 Entry
 ├── id
 ├── raw_content
+├── requested_due_date?       // échéance choisie pendant la capture
 ├── classification_state       // pending | failed | classified
 ├── classification_source?     // jev | manual une fois classifiée
 ├── classified_object?         // exactement une Task ou un Project si classified
@@ -198,7 +199,7 @@ Entry
 #### Règles
 
 - aucune décision de type obligatoire pour l’utilisateur à la capture ;
-- aucune date métier ;
+- aucune date d’exécution propre à l’Entry ; `requested_due_date` conserve seulement l’échéance à appliquer à l’objet classifié ;
 - `classification_state` décrit le traitement de la capture, sans être un statut de Task ou Project ;
 - une Entry classifiée automatiquement quitte la section « Non classées » de Revue et reste visible dans la Revue, y compris après confirmation ;
 - une Entry non classifiée reste éditable avec autosave ;
@@ -434,6 +435,8 @@ Le Collector possède un unique champ principal.
 
 Aucun autre champ n’est obligatoire. Le champ accepte plusieurs lignes afin de pouvoir capturer un titre puis du contexte Markdown. La capture doit rester réalisable en une action clavier/tactile ; le raccourci exact est laissé au design, avec un moyen distinct d’insérer une nouvelle ligne.
 
+Un préfixe facultatif `/today`, `/thisweek`, `/thismonth` ou `/thisyear`, suivi d’un espace, devient un badge d’échéance à gauche du texte. Les dates sont calculées dans la timezone locale de l’utilisateur : aujourd’hui, le dimanche de la semaine courante, le dernier jour du mois ou le 31 décembre. `/date` ouvre un calendrier pour choisir une date. Le badge peut être modifié ou retiré avant la capture. Les commandes ne font pas partie du titre ni du texte transmis à Jev.
+
 ### 9.2 Capture classifiée par Jev
 
 L’action primaire ne demande aucun type :
@@ -447,6 +450,8 @@ Jev choisit parmi ces deux types définis par l’application. Un résultat vali
 Le Collector confirme la persistance de l’Entry sans attendre Jev et reste disponible pour une autre capture. Une notification visible indique d’abord que le classement est en cours, puis le type retenu et, pour une Task, le Project de rattachement s’il existe. Elle indique aussi l’absence de rattachement.
 
 En cas d’échec de Jev ou de réponse invalide, l’Entry reste non classifiée. L’utilisateur peut relancer la classification ou la traiter manuellement depuis la section « Non classées » de Revue.
+
+Si une échéance a été choisie, l’Entry la conserve lors d’un échec et d’une relance. La Task ou le Project créé reçoit cette `due_date`, y compris après un classement manuel. Une correction ultérieure du type dans la Revue préserve la date d’échéance actuelle, commune aux deux types.
 
 ### 9.3 Rattachement facultatif
 
@@ -484,6 +489,8 @@ description_md = "Ajouter mon expérience actuelle.\nVérifier toutes les dates.
 ```
 
 Aucun titre ni description n’est généré par Jev. La règle première ligne / reste du contenu s’applique à la capture automatique comme au choix manuel.
+
+Le texte après retrait de la commande constitue `raw_content` ; la date choisie est conservée séparément dans `requested_due_date`.
 
 ### 9.6 Garantie de persistance
 
@@ -998,6 +1005,8 @@ Enter
 ```
 
 Depuis un Project, la nouvelle Task reçoit automatiquement le `project_id` courant.
+
+Les champs de création rapide de Task, dans Tasks et dans un Project, acceptent les mêmes commandes d’échéance et le même calendrier. La date est enregistrée avec la Task dès sa création ; une erreur de sauvegarde conserve le titre et le badge saisis.
 
 ---
 

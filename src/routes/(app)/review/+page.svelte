@@ -174,6 +174,7 @@
 									· {entry.parentTitle ? `Projet : ${entry.parentTitle}` : 'Sans projet'}</span
 								>
 							{/if}
+							{#if entry.dueDate}<span> · Échéance {entry.dueDate}</span>{/if}
 							{#if entry.objectDeleted}<span class="ml-2 text-red-700">Objet supprimé</span>{/if}
 						</div>
 						{#if !entry.reviewedAt || !entry.objectDeleted}
