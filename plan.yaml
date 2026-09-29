@@ -67,7 +67,7 @@ slices:
         done: true
       - description: "Créer la liste des captures non classées"
         done: true
-      - description: "Créer le traitement manuel séquentiel avec Task/Project/Vision/Plus tard/Supprimer"
+      - description: "Créer le traitement manuel séquentiel avec Task/Project/Plus tard/Supprimer"
         done: true
       - description: "Implémenter first-line -> title et reste -> description"
         done: true
@@ -82,7 +82,7 @@ slices:
         done: true
       - description: "Créer le client Jev server-only via OpenRouter et valider ses réponses"
         done: true
-      - description: "Définir les choix bornés Task/Project/Vision et les rattachements facultatifs"
+      - description: "Définir les choix bornés Task/Project et le rattachement facultatif"
         done: true
       - description: "Classifier les captures du Collector après persistance avec échec récupérable et Retry"
         done: true
@@ -147,18 +147,18 @@ slices:
         done: true
 
   - id: "08"
-    name: visions
+    name: simplify-classification
     done: false
     tasks:
-      - description: "Créer le modèle Vision"
+      - description: "Aligner le PRD et l'architecture sur Task et Project"
         done: true
-      - description: "Implémenter ACTIVE/PAUSED/ARCHIVED"
-        done: true
-      - description: "Relier un Project à zéro ou une Vision"
+      - description: "Retirer la troisième catégorie du Collector, de Jev, de la Revue et de la navigation"
         done: false
-      - description: "Créer les pages liste/détail Vision"
+      - description: "Supprimer les écrans et le rattachement supérieur des Projects"
         done: false
-      - description: "Afficher les Projects associés sans propagation de statut"
+      - description: "Régénérer les migrations initiales et réinitialiser la base de développement"
+        done: false
+      - description: "Adapter les tests et vérifier le parcours complet Task/Project"
         done: false
 
   - id: "09"

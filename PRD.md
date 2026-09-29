@@ -27,7 +27,7 @@ Dans un usage personnel, les outils de gestion de projet professionnels introdui
 Le produit doit permettre de :
 
 - capturer une idée ou une action en quelques secondes ;
-- classifier par défaut les captures en Task, Project ou Vision dès leur arrivée ;
+- classifier par défaut les captures en Task ou Project dès leur arrivée ;
 - revoir et corriger les classifications automatiques sans imposer une validation avant usage ;
 - conserver les captures non classifiées dans une section « Non classées » de Revue ;
 - gérer des tâches ponctuelles et des tâches récurrentes simples ;
@@ -45,15 +45,15 @@ Le produit doit permettre de :
 
 Aucune information autre que le contenu de la capture ne doit être obligatoire dans le Collector.
 
-Jev propose par défaut une classification après la persistance de la capture. En cas d’échec, l’utilisateur peut choisir explicitement Task, Project ou Vision dans la Revue.
+Jev propose par défaut une classification après la persistance de la capture. En cas d’échec, l’utilisateur peut choisir explicitement Task ou Project dans la Revue.
 
 ### 3.2 Classification immédiate, spécification progressive
 
 Une capture est utilisable dès que Jev l’a classifiée, sans attendre la revue humaine.
 
-Un objet classifié peut rester incomplet et être enrichi plus tard. Une Task, un Project ou une Vision ne doit pas exiger de description, date ou rattachement pour exister.
+Un objet classifié peut rester incomplet et être enrichi plus tard. Une Task ou un Project ne doit pas exiger de description, date ou rattachement pour exister.
 
-La **classification** et la **spécification** sont deux décisions indépendantes. Un rattachement Project ou Vision proposé par Jev reste optionnel et corrigeable.
+La **classification** et la **spécification** sont deux décisions indépendantes. Un rattachement Project proposé par Jev reste optionnel et corrigeable.
 
 ### 3.3 La structure aide, elle ne bloque pas
 
@@ -66,7 +66,6 @@ Le changement de statut d’un conteneur ne modifie jamais automatiquement le st
 Exemples :
 
 - mettre un Project en pause ne modifie pas ses Tasks ;
-- mettre une Vision en pause ou l’archiver ne modifie aucun Project ;
 - supprimer un Checkpoint ne supprime aucune Task.
 
 ### 3.5 Les états calculés ne sont pas des statuts métier
@@ -94,7 +93,6 @@ La V1 inclut :
 - Tasks ;
 - Projects ;
 - Checkpoints ;
-- Visions ;
 - tâches récurrentes simples ;
 - Home avec `Late`, `In Progress` et `Today` ;
 - recherche globale ;
@@ -152,9 +150,6 @@ Sont explicitement exclus :
 ## 6. Modèle conceptuel
 
 ```text
-Vision
-  └── 0..n Projects
-
 Project
   ├── 0..n Checkpoints
   └── 0..n Tasks
@@ -169,11 +164,8 @@ Checkpoint
 Relations interdites en V1 :
 
 ```text
-Task → Vision directe       ❌
-Checkpoint → Vision         ❌
 Checkpoint sans Project     ❌
 Task → plusieurs Projects   ❌
-Project → plusieurs Visions ❌
 Task → plusieurs Checkpoints❌
 ```
 
@@ -185,7 +177,7 @@ Task → plusieurs Checkpoints❌
 
 Une `Entry` est la trace persistante d’un texte saisi dans le Collector, qu’il soit classifié par Jev ou manuellement. Elle conserve le texte original et le lien vers l’objet créé. Si la classification échoue, elle reste à traiter dans la section « Non classées » de Revue.
 
-Une Entry n’est pas une Task, un Project ou une Vision et ne remplace jamais ces objets métier.
+Une Entry n’est pas une Task ou un Project et ne remplace jamais ces objets métier.
 
 #### Données minimales
 
@@ -195,7 +187,7 @@ Entry
 ├── raw_content
 ├── classification_state       // pending | failed | classified
 ├── classification_source?     // jev | manual une fois classifiée
-├── classified_object?         // exactement un Task, Project ou Vision si classified
+├── classified_object?         // exactement une Task ou un Project si classified
 ├── classified_at?
 ├── reviewed_at?
 ├── created_at
@@ -207,7 +199,7 @@ Entry
 
 - aucune décision de type obligatoire pour l’utilisateur à la capture ;
 - aucune date métier ;
-- `classification_state` décrit le traitement de la capture, sans être un statut de Task, Project ou Vision ;
+- `classification_state` décrit le traitement de la capture, sans être un statut de Task ou Project ;
 - une Entry classifiée automatiquement quitte la section « Non classées » de Revue et reste visible dans la Revue, y compris après confirmation ;
 - une Entry non classifiée reste éditable avec autosave ;
 - la revue humaine n’est jamais un prérequis à l’utilisation de l’objet créé ;
@@ -275,7 +267,7 @@ Lorsqu’une Task `DONE` est rouverte via l’action rapide standard, elle revie
 
 ### 7.3 Project
 
-Un `Project` représente un résultat concret et terminable.
+Un `Project` représente un résultat concret ou un chantier durable qui regroupe des actions. Sa clôture reste facultative et toujours manuelle.
 
 Exemples :
 
@@ -283,6 +275,7 @@ Exemples :
 - repeindre une chambre ;
 - préparer un marathon ;
 - mettre à jour son CV.
+- progresser régulièrement en dessin.
 
 #### Statuts
 
@@ -302,7 +295,6 @@ Project
 ├── title
 ├── description_md?
 ├── status
-├── vision_id?           // 0..1
 ├── start_date?
 ├── due_date?
 ├── started_at?
@@ -322,8 +314,6 @@ Project
 #### Règles
 
 - un Project peut exister sans Task ;
-- un Project peut exister sans Vision ;
-- un Project appartient à maximum une Vision ;
 - aucun tag ou catégorie n’est requis ou disponible en V1 ;
 - la clôture est toujours manuelle ;
 - terminer toutes les Tasks ne termine jamais automatiquement le Project ;
@@ -387,50 +377,6 @@ Checkpoint
 
 ---
 
-### 7.5 Vision
-
-Une `Vision` représente une direction durable ou un état souhaité, non nécessairement terminable.
-
-Exemples :
-
-- progresser sérieusement en dessin ;
-- être en excellente condition physique ;
-- avoir un environnement de vie agréable.
-
-Une intention finie et concrète doit être modélisée comme un Project, pas comme une Vision.
-
-#### Statuts
-
-```text
-ACTIVE
-PAUSED
-ARCHIVED
-```
-
-#### Données fonctionnelles
-
-```text
-Vision
-├── id
-├── title
-├── description_md?
-├── status
-├── created_at
-├── updated_at
-└── deleted_at?
-```
-
-#### Règles
-
-- aucune date ;
-- aucun statut `DONE` ou `CANCELLED` : une Vision est une direction, pas un résultat à clôturer ;
-- aucune Task directe ;
-- aucun Checkpoint direct ;
-- une Vision peut exister sans Project ;
-- son statut n’est jamais propagé à ses Projects.
-
----
-
 ## 8. Markdown
 
 Toutes les entités métier structurées utilisent la convention :
@@ -444,8 +390,7 @@ Sont concernés :
 
 - Task ;
 - Project ;
-- Checkpoint ;
-- Vision.
+- Checkpoint.
 
 Le Markdown est documentaire uniquement.
 
@@ -494,24 +439,24 @@ Aucun autre champ n’est obligatoire. Le champ accepte plusieurs lignes afin de
 L’action primaire ne demande aucun type :
 
 ```text
-capture → Entry persistée → Jev → Task | Project | Vision → Revue
+capture → Entry persistée → Jev → Task | Project → Revue
 ```
 
-Jev choisit parmi ces trois types définis par l’application. Un résultat valide crée immédiatement l’objet métier, utilisable avant toute revue humaine. L’Entry conserve la capture d’origine, le type retenu et un lien vers cet objet ; la Revue montre toutes les classifications automatiques, confirmées ou non. Le texte de la capture est transmis à OpenRouter et TypeSafe pour cette décision.
+Jev choisit parmi ces deux types définis par l’application. Un résultat valide crée immédiatement l’objet métier, utilisable avant toute revue humaine. L’Entry conserve la capture d’origine, le type retenu et un lien vers cet objet ; la Revue montre toutes les classifications automatiques, confirmées ou non. Le texte de la capture est transmis à OpenRouter et TypeSafe pour cette décision.
 
-Le Collector confirme la persistance de l’Entry sans attendre Jev et reste disponible pour une autre capture. Une notification visible indique d’abord que le classement est en cours, puis le type retenu et, pour une Task ou un Project, le Project ou la Vision de rattachement s’il existe. Elle indique aussi l’absence de rattachement.
+Le Collector confirme la persistance de l’Entry sans attendre Jev et reste disponible pour une autre capture. Une notification visible indique d’abord que le classement est en cours, puis le type retenu et, pour une Task, le Project de rattachement s’il existe. Elle indique aussi l’absence de rattachement.
 
 En cas d’échec de Jev ou de réponse invalide, l’Entry reste non classifiée. L’utilisateur peut relancer la classification ou la traiter manuellement depuis la section « Non classées » de Revue.
 
 ### 9.3 Rattachement facultatif
 
-Après avoir choisi `Task`, Jev peut proposer un Project **existant**. Après avoir choisi `Project`, il peut proposer une Vision **existante**. L’option « aucun rattachement » est toujours disponible. Jev ne crée jamais automatiquement un conteneur supplémentaire et ne rattache jamais directement une Task à une Vision ou un Checkpoint.
+Après avoir choisi `Task`, Jev peut proposer un Project **existant**. L’option « aucun rattachement » est toujours disponible. Jev ne crée jamais automatiquement un conteneur supplémentaire et ne rattache jamais directement une Task à un Checkpoint.
 
-Un rattachement incertain, invalide ou devenu indisponible laisse l’objet autonome. Une Task peut ainsi rester sans Project et un Project sans Vision. La Revue permet de corriger le rattachement.
+Un rattachement incertain, invalide ou devenu indisponible laisse la Task autonome. Un Project est toujours autonome. La Revue permet de corriger le rattachement d’une Task.
 
 ### 9.4 Choix manuel après échec
 
-Dans « Non classées », un choix manuel permet de créer une Task, un Project ou une Vision sans nouvel appel à Jev. L’Entry correspondante garde la trace de la capture mais ne figure pas parmi les classifications automatiques à revoir.
+Dans « Non classées », un choix manuel permet de créer une Task ou un Project sans nouvel appel à Jev. L’Entry correspondante garde la trace de la capture mais ne figure pas parmi les classifications automatiques à revoir.
 
 ### 9.5 Transformation du contenu
 
@@ -570,8 +515,8 @@ Une classification Jev est appliquée avant confirmation humaine : la Revue sert
 Depuis la Revue, l’utilisateur peut :
 
 - confirmer la classification sans changer l’objet ;
-- corriger le type `Task` / `Project` / `Vision` proposé par Jev ;
-- corriger ou retirer le Project d’une Task, ou la Vision d’un Project ;
+- corriger le type `Task` / `Project` proposé par Jev ;
+- corriger ou retirer le Project d’une Task ;
 - ouvrir l’objet créé pour l’enrichir dans sa page habituelle.
 
 Une correction de type remplace transactionnellement l’objet classifié automatiquement et met à jour le lien de l’Entry. Le texte, le titre et la description restent disponibles. Aucune relation enfant ni champ propre à l’ancien type n’est supprimé ou converti silencieusement : si une conversion ne peut pas préserver ces données, l’interface explique le conflit et demande de le résoudre d’abord. Les conversions générales hors de ce parcours restent exclues.
@@ -582,7 +527,7 @@ La confirmation renseigne `reviewed_at`. Une correction le renseigne également.
 
 La section « Non classées » est accessible depuis `Revue` lorsqu’au moins une capture attend un classement. Elle contient uniquement les Entries non classifiées, y compris celles dont l’appel Jev a échoué. La liste est affichée de la plus récente à la plus ancienne. Une action `Réessayer avec Jev` est proposée pour les échecs.
 
-Le traitement manuel séquentiel prend la capture la plus ancienne en premier, avec `Task`, `Project`, `Vision`, `Plus tard` et `Supprimer`. Classifier manuellement crée l’objet et retire l’Entry de cette section sans effacer la capture d’origine. `Plus tard` ne modifie aucune donnée. Une Entry non classifiée reste éditable et supprimable.
+Le traitement manuel séquentiel prend la capture la plus ancienne en premier, avec `Task`, `Project`, `Plus tard` et `Supprimer`. Classifier manuellement crée l’objet et retire l’Entry de cette section sans effacer la capture d’origine. `Plus tard` ne modifie aucune donnée. Une Entry non classifiée reste éditable et supprimable.
 
 ### 10.4 Checkpoints
 
@@ -764,7 +709,7 @@ AND tasks.count == 0
 AND checkpoints.count == 0
 ```
 
-La description, les dates et la Vision ne sont jamais nécessaires pour retirer cet indicateur.
+La description et les dates ne sont jamais nécessaires pour retirer cet indicateur.
 
 ### 13.2 Pause
 
@@ -991,7 +936,6 @@ Chaque élément peut exposer :
 
 - titre ;
 - statut ;
-- Vision liée éventuelle ;
 - indicateur `TO_BUILD` ;
 - nombre de Tasks ouvertes / terminées ;
 - nombre de Checkpoints atteints / totaux ;
@@ -1005,7 +949,6 @@ Structure recommandée :
 PROJECT
 Titre
 Status
-Vision éventuelle
 Start / Due
 
 Description.md
@@ -1026,33 +969,7 @@ Si un prochain Checkpoint daté existe, le détail Project peut le mettre en év
 
 ---
 
-## 19. Page Visions
-
-Une Vision reste volontairement légère.
-
-Structure recommandée :
-
-```text
-VISION
-Titre
-Status
-
-Description.md
-
-PROJECTS
-• Project A — ACTIVE
-• Project B — PAUSED
-• Project C — PLANNED
-
-COMPLETED PROJECTS
-...
-```
-
-Aucune Task ou Checkpoint direct.
-
----
-
-## 20. Création contextuelle
+## 19. Création contextuelle
 
 Le Collector n’est pas le seul point de création.
 
@@ -1063,17 +980,11 @@ Project page
 → Add Task
 → Add Checkpoint
 
-Vision page
-→ Add Project
-
 Tasks page
 → Add Task
 
 Projects page
 → Add Project
-
-Visions page
-→ Add Vision
 ```
 
 Les créations contextuelles utilisent un input minimal, sans grosse modal obligatoire.
@@ -1088,15 +999,13 @@ Enter
 
 Depuis un Project, la nouvelle Task reçoit automatiquement le `project_id` courant.
 
-Depuis une Vision, le nouveau Project reçoit automatiquement le `vision_id` courant.
-
 ---
 
-## 21. Recherche globale
+## 20. Recherche globale
 
 La recherche globale est accessible depuis n’importe quelle vue, idéalement via `Ctrl/Cmd + K`.
 
-### 21.1 Contenu indexé
+### 20.1 Contenu indexé
 
 Recherche simple dans :
 
@@ -1105,13 +1014,11 @@ Task.title
 Task.description
 Project.title
 Project.description
-Vision.title
-Vision.description
 Checkpoint.title
 Checkpoint.description
 ```
 
-### 21.2 Présentation
+### 20.2 Présentation
 
 Les résultats sont groupés par type et fournissent juste assez de contexte pour comprendre leur origine.
 
@@ -1125,21 +1032,17 @@ ACTIVE
 TASK
 Corriger responsive mobile
 Portfolio · TODO
-
-VISION
-Développer ma pratique artistique
-ACTIVE
 ```
 
 Pas de query language, de moteur avancé ou de filtres complexes en V1.
 
 ---
 
-## 22. Actions rapides
+## 21. Actions rapides
 
 Les actions fréquentes doivent être réalisables directement depuis les listes.
 
-### 22.1 Task
+### 21.1 Task
 
 Action principale :
 
@@ -1159,13 +1062,13 @@ Move
 
 Une Task `DONE` peut être rouverte.
 
-### 22.2 Checkpoint
+### 21.2 Checkpoint
 
 Action principale : `OPEN → DONE`.
 
 `Cancel` reste secondaire.
 
-### 22.3 Undo
+### 21.3 Undo
 
 Les actions rapides importantes affichent un feedback temporaire avec `Undo`.
 
@@ -1183,9 +1086,9 @@ Il n’existe aucun historique global d’Undo.
 
 ---
 
-## 23. Autosave et gestion des erreurs
+## 22. Autosave et gestion des erreurs
 
-### 23.1 Autosave
+### 22.1 Autosave
 
 Les éditions ordinaires utilisent l’autosave :
 
@@ -1206,7 +1109,7 @@ Save failed
 
 `Saved` ne doit jamais être affiché avant confirmation serveur.
 
-### 23.2 Échec réseau
+### 22.2 Échec réseau
 
 En cas d’échec :
 
@@ -1215,7 +1118,7 @@ En cas d’échec :
 - afficher une erreur inline ;
 - proposer `Retry`.
 
-### 23.3 Confirmations
+### 22.3 Confirmations
 
 Les confirmations doivent être rares.
 
@@ -1227,13 +1130,12 @@ Exemples :
 
 - Delete ;
 - Cancel Project ;
-- Archive Vision ;
 - Cancel recurring Task ;
 - clôturer un Project avec des Tasks ouvertes.
 
 ---
 
-## 24. Suppression et Trash
+## 23. Suppression et Trash
 
 `Delete` est distinct de `CANCELLED`.
 
@@ -1247,15 +1149,7 @@ Delete
 
 La suppression passe par une Trash récupérable pendant une durée limitée. Depuis la Trash, l’utilisateur peut restaurer un objet ou demander sa purge définitive ; la purge définitive doit être explicitement confirmée.
 
-### 24.1 Suppression d’une Vision
-
-```text
-Delete Vision
-→ Projects conservés
-→ vision_id = null
-```
-
-### 24.2 Suppression d’un Project
+### 23.1 Suppression d’un Project
 
 ```text
 Delete Project
@@ -1265,7 +1159,7 @@ Delete Project
 → Checkpoints supprimés avec le Project
 ```
 
-### 24.3 Suppression d’un Checkpoint
+### 23.2 Suppression d’un Checkpoint
 
 ```text
 Delete Checkpoint
@@ -1273,7 +1167,7 @@ Delete Checkpoint
 → checkpoint_id = null
 ```
 
-### 24.4 Suppression d’une Task
+### 23.3 Suppression d’une Task
 
 ```text
 Delete Task
@@ -1284,7 +1178,7 @@ La durée exacte de rétention dans la Trash est une décision d’implémentati
 
 ---
 
-## 25. Navigation
+## 24. Navigation
 
 Navigation principale recommandée :
 
@@ -1293,7 +1187,6 @@ Collector / Home
 Revue
 Tasks
 Projects
-Visions
 Search
 ```
 
@@ -1309,7 +1202,7 @@ Il n’existe aucune page globale `Overview` en V1.
 
 ---
 
-## 26. Desktop et keyboard-first
+## 25. Desktop et keyboard-first
 
 La V1 desktop doit être efficacement utilisable sans souris pour les actions fréquentes.
 
@@ -1332,7 +1225,7 @@ La V1 ne cherche pas à reproduire un système modal complet de type Vim.
 
 ---
 
-## 27. Mobile
+## 26. Mobile
 
 Le mobile possède une parité fonctionnelle complète avec le desktop.
 
@@ -1347,7 +1240,7 @@ La disposition peut différer :
 
 ---
 
-## 28. Direction UI
+## 27. Direction UI
 
 L’interface doit être :
 
@@ -1365,7 +1258,7 @@ La hiérarchie visuelle doit favoriser le contenu et les actions plutôt que les
 
 ---
 
-## 29. Authentification et modèle utilisateur
+## 28. Authentification et modèle utilisateur
 
 La V1 est strictement mono-utilisateur.
 
@@ -1391,7 +1284,7 @@ Le mécanisme exact d’authentification est une décision d’architecture tech
 
 ---
 
-## 30. Online-first
+## 29. Online-first
 
 La V1 nécessite une connexion Internet pour lire et modifier les données.
 
@@ -1408,7 +1301,7 @@ Invariant :
 
 ---
 
-## 31. Exigences non fonctionnelles V1
+## 30. Exigences non fonctionnelles V1
 
 Les exigences restent qualitatives dans le PRD. Les budgets chiffrés seront définis pendant l’architecture.
 
@@ -1453,9 +1346,9 @@ Support des navigateurs modernes uniquement.
 
 ---
 
-## 32. User flows principaux
+## 31. User flows principaux
 
-### 32.1 Capturer sans réfléchir
+### 31.1 Capturer sans réfléchir
 
 ```text
 Home
@@ -1463,7 +1356,7 @@ Home
 → Enter
 → Entry persistée
 → confirmation serveur, Collector vidé et prêt pour une autre capture
-→ Jev classe en Task / Project / Vision
+→ Jev classe en Task / Project
 → objet créé et utilisable
 → notification du type et du rattachement éventuel
 → capture visible dans Revue pour vérification facultative
@@ -1471,7 +1364,7 @@ Home
 
 Si Jev échoue après la persistance, l’Entry reste dans la section « Non classées » de Revue avec `Réessayer avec Jev` ; la capture n’est pas perdue.
 
-### 32.2 Classer manuellement après un échec
+### 31.2 Classer manuellement après un échec
 
 ```text
 Home
@@ -1483,7 +1376,7 @@ Home
 → Task créée et capture conservée
 ```
 
-### 32.3 Revoir ou corriger Jev
+### 31.3 Revoir ou corriger Jev
 
 ```text
 Revue
@@ -1498,25 +1391,24 @@ Si Jev n’a pas classifié la capture :
 Revue → Non classées
 → Traitement séquentiel
 → Entry la plus ancienne
-→ Réessayer avec Jev ou choisir Task / Project / Vision
+→ Réessayer avec Jev ou choisir Task / Project
 → objet créé
 → Entry retirée de la section « Non classées » de Revue
 → suivante
 ```
 
-### 32.4 Enrichir un Project
+### 31.4 Enrichir un Project
 
 ```text
 Project
 → description Markdown
 → dates optionnelles
-→ rattachement Vision optionnel
 → Add Task
 → Add Checkpoint
 → réordonner si nécessaire
 ```
 
-### 32.5 Exécuter une Task
+### 31.5 Exécuter une Task
 
 ```text
 Home / Tasks / Project
@@ -1525,7 +1417,7 @@ Home / Tasks / Project
 → feedback + Undo
 ```
 
-### 32.6 Démarrer explicitement une Task
+### 31.6 Démarrer explicitement une Task
 
 ```text
 Task TODO
@@ -1534,7 +1426,7 @@ Task TODO
 → visible dans In Progress
 ```
 
-### 32.7 Terminer une Task récurrente
+### 31.7 Terminer une Task récurrente
 
 ```text
 Task récurrente
@@ -1544,7 +1436,7 @@ Task récurrente
 → status = TODO
 ```
 
-### 32.8 Reporter une Task récurrente
+### 31.8 Reporter une Task récurrente
 
 ```text
 Task récurrente planifiée lundi
@@ -1555,7 +1447,7 @@ Task récurrente planifiée lundi
 → prochaine date future correspondant à lundi
 ```
 
-### 32.9 Fermer un Project avec Tasks ouvertes
+### 31.9 Fermer un Project avec Tasks ouvertes
 
 ```text
 Project ACTIVE
@@ -1567,7 +1459,7 @@ Project ACTIVE
 → Tasks masquées des vues d'exécution
 ```
 
-### 32.10 Déplacer une Task
+### 31.10 Déplacer une Task
 
 ```text
 Task Project A / Checkpoint A
@@ -1579,7 +1471,7 @@ Task Project A / Checkpoint A
 
 ---
 
-## 33. Critères d’acceptation fonctionnels
+## 32. Critères d’acceptation fonctionnels
 
 La V1 est considérée fonctionnellement complète lorsque les scénarios suivants sont fiables.
 
@@ -1592,7 +1484,7 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 - vider le Collector uniquement après confirmation de persistance ;
 - conserver l’Entry et proposer une relance si Jev échoue ;
 - éviter les doublons lors d’une nouvelle tentative de capture ;
-- classer manuellement une capture en Task, Project ou Vision depuis la Revue ;
+- classer manuellement une capture en Task ou Project depuis la Revue ;
 - appliquer correctement la règle première ligne / description.
 
 ### Revue et captures non classées
@@ -1600,13 +1492,13 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 - afficher toutes les classifications Jev, y compris celles déjà confirmées, les plus récentes en premier ;
 - confirmer ou corriger le type et le rattachement depuis la Revue ;
 - ne jamais supprimer silencieusement des données lors d’une correction de type ;
-- laisser un rattachement vide si aucun Project ou Vision admissible n’est choisi avec assez de certitude ;
+- laisser un rattachement vide si aucun Project admissible n’est choisi avec assez de certitude ;
 - proposer le filtre « Non classées » dans la Revue lorsqu’au moins une capture en a besoin ;
 - afficher les Entries non classifiées, les plus récentes en premier dans la section « Non classées » de Revue ;
 - éditer une Entry avant classification avec autosave ;
 - relancer Jev sur une Entry en échec ;
 - traiter séquentiellement la section « Non classées » de Revue, les plus anciennes en premier ;
-- classifier en Task, Project ou Vision ;
+- classifier en Task ou Project ;
 - quitter la section « Non classées » de Revue dès la classification, sans exiger de spécification complète ;
 - utiliser `Plus tard` sans mutation ;
 - supprimer une Entry.
@@ -1637,7 +1529,6 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 - Project vide autorisé ;
 - indicateur `TO_BUILD` calculé uniquement sur les Projects ouverts sans Task ni Checkpoint ;
 - dates optionnelles avec distinction intention (`start_date` / `due_date`) et historique (`started_at` / `completed_at`) ;
-- Vision optionnelle ;
 - Tasks et Checkpoints ;
 - clôture manuelle ;
 - avertissement en cas de Tasks ouvertes ;
@@ -1653,14 +1544,6 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 - Tasks liées affichées sans imbrication structurelle ;
 - réouverture `DONE → OPEN` possible.
 
-### Visions
-
-- CRUD complet ;
-- `ACTIVE / PAUSED / ARCHIVED` ;
-- aucune date ;
-- aucun rattachement direct de Task ;
-- liste de Projects associés.
-
 ### Exécution
 
 - Home affiche correctement `Late / In Progress / Today` ;
@@ -1674,7 +1557,7 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 
 - recherche globale depuis n’importe quelle vue ;
 - title + description ;
-- résultats Task / Project / Vision / Checkpoint ;
+- résultats Task / Project / Checkpoint ;
 - navigation directe vers un résultat.
 
 ### Fiabilité
@@ -1696,7 +1579,7 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 
 ---
 
-## 34. Définition de sortie V1
+## 33. Définition de sortie V1
 
 La V1 est terminée lorsqu’elle peut servir pendant plusieurs semaines de gestionnaire personnel principal pour le scope défini, sans devoir revenir à Notes ou Jira pour les workflows couverts.
 
@@ -1704,7 +1587,7 @@ L’utilisateur doit pouvoir :
 
 1. capturer depuis téléphone et desktop ;
 2. vérifier les classifications Jev dans la Revue et traiter les éventuels échecs dans la section « Non classées » de Revue ;
-3. créer et gérer Tasks, Projects, Visions et Checkpoints ;
+3. créer et gérer Tasks, Projects et Checkpoints ;
 4. planifier des Tasks et des deadlines ;
 5. utiliser les Tasks récurrentes simples ;
 6. voir correctement `Late / In Progress / Today` ;
@@ -1718,7 +1601,7 @@ Tout ce qui n’est pas nécessaire à cette boucle reste hors scope.
 
 ---
 
-## 35. Questions réservées à la phase architecture / stack
+## 34. Questions réservées à la phase architecture / stack
 
 Ces décisions ne doivent pas modifier le comportement produit défini ci-dessus :
 
@@ -1742,7 +1625,7 @@ Ces décisions ne doivent pas modifier le comportement produit défini ci-dessus
 
 ---
 
-## 36. Idées explicitement différées pour une V2+
+## 35. Idées explicitement différées pour une V2+
 
 À reconsidérer seulement si l’usage réel les justifie :
 
@@ -1765,7 +1648,7 @@ Ces décisions ne doivent pas modifier le comportement produit défini ci-dessus
 
 ---
 
-## 37. Registre consolidé des décisions produit
+## 36. Registre consolidé des décisions produit
 
 Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spécifications détaillées ci-dessus ; elle récapitule les décisions produit, y compris celles ajoutées pour la slice Jev, afin d’éviter leur réintroduction accidentelle pendant l’architecture ou l’implémentation.
 
@@ -1774,23 +1657,21 @@ Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spéc
 - boucle de référence : `Capture → Classification automatique → Revue facultative → Organisation → Exécution → Accomplissement` ;
 - seul le contenu est obligatoire à la capture ;
 - une capture du Collector devient une Entry persistée avant l’appel à Jev ;
-- Jev classifie en Task, Project ou Vision sans attendre une confirmation humaine ;
+- Jev classifie en Task ou Project sans attendre une confirmation humaine ;
 - les classifications Jev restent visibles dans la Revue, même après confirmation ;
 - une capture non classifiée ou en échec reste dans la section « Non classées » de Revue ;
 - la spécification est progressive, le rattachement automatique est facultatif ;
-- classifications disponibles : `Task`, `Project`, `Vision` uniquement ;
+- classifications disponibles : `Task`, `Project` uniquement ;
 - `Checkpoint` n’est jamais une classification du Collector ou de Jev ;
 - `Plus tard` ne crée ni statut, ni date, ni snooze ;
 - la correction d’une classification Jev peut changer le type depuis la Revue, sans perte silencieuse de données ; les autres conversions restent exclues.
 
 ### Modèle métier
 
-- `Vision` = direction durable ; `Project` = résultat concret et terminable ; `Checkpoint` = jalon observable d’un Project ; `Task` = action exécutable ;
+- `Project` = résultat concret ou chantier durable ; `Checkpoint` = jalon observable d’un Project ; `Task` = action exécutable ;
 - aucun modèle `Goal` séparé ;
 - aucun tag, Area, priorité, dépendance, sous-tâche ou checklist structurée ;
 - une Task a au plus un Project et un Checkpoint du même Project ;
-- un Project a au plus une Vision ;
-- une Vision ne reçoit jamais de Task directement ;
 - un Checkpoint appartient toujours à exactement un Project.
 
 ### États
@@ -1798,7 +1679,6 @@ Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spéc
 - Task : `TODO / IN_PROGRESS / DONE / CANCELLED` ;
 - Project : `PLANNED / ACTIVE / PAUSED / DONE / CANCELLED` ;
 - Checkpoint : `OPEN / DONE / CANCELLED` ;
-- Vision : `ACTIVE / PAUSED / ARCHIVED` ;
 - `LATE`, `OVERDUE`, `TO_BUILD` sont calculés et ne sont pas des statuts persistés ;
 - aucun `DRAFT`, `BLOCKED`, `ON_HOLD`, `BACKLOG` ou `REVIEW` métier en V1.
 
@@ -1807,7 +1687,7 @@ Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spéc
 - une Task peut passer directement de `TODO` à `DONE` ;
 - la complétion depuis les listes est une action primaire en un clic/tap ; `Start`, `Cancel` et autres actions moins fréquentes restent secondaires ;
 - aucune fermeture de Project n’est automatique lorsque toutes ses Tasks sont terminées ;
-- aucune propagation silencieuse de statut depuis Vision/Project vers les objets enfants ;
+- aucune propagation silencieuse de statut depuis un Project vers ses Tasks ;
 - Project `PAUSED` masque les suggestions ordinaires mais pas les obligations temporelles explicites ;
 - Project `DONE/CANCELLED` masque ses Tasks des vues d’exécution même si elles ont encore des dates.
 
@@ -1838,6 +1718,6 @@ Cette section sert de garde-fou de traçabilité. Elle ne remplace pas les spéc
 
 ---
 
-## 38. Phrase produit de référence
+## 37. Phrase produit de référence
 
 > **Capturer immédiatement tout ce qui me passe par la tête, le clarifier avec le minimum de friction, le structurer seulement lorsque cela m’aide, puis faire émerger clairement ce sur quoi je dois agir.**

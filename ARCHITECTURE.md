@@ -51,7 +51,7 @@ src/
   routes/
   lib/
     components/
-    domain/{tasks,projects,visions,checkpoints,recurrence}/
+    domain/{tasks,projects,checkpoints,recurrence}/
     server/{application,repositories,db,auth,search}/
   hooks.server.ts
 tests/{integration,e2e}/
@@ -98,8 +98,12 @@ complexes : use cases transactionnels. **Aucun trigger métier.**
 
 ## 6. Modèle de données
 
-Cinq tables métier : `entries`, `visions`, `projects`, `checkpoints`,
-`tasks`.
+Quatre tables métier : `entries`, `projects`, `checkpoints`, `tasks`.
+
+Le schéma initial est régénéré pendant la slice de simplification. Les
+environnements de développement existants sont recréés avec
+`pnpm db:reset:dev` : cette opération efface toutes leurs données, y
+compris les sessions. Elle n'est pas une migration de production.
 
 Absents : routines, occurrences, subtasks, checklist items, tags,
 workspaces, memberships, priorities, dépendances.
@@ -109,13 +113,13 @@ workspaces, memberships, priorities, dépendances.
 `id`, `capture_request_id UUID? UNIQUE`, `raw_content TEXT`,
 `classification_state(pending|failed|classified)`,
 `classification_source(jev|manual)?`, `task_id?`, `project_id?`,
-`vision_id?`, `classified_at?`, `reviewed_at?`, `jev_model?`,
+`classified_at?`, `reviewed_at?`, `jev_model?`,
 `type_probability?`, `relation_probability?`, `created_at`,
 `updated_at`, `deleted_at?`.
 
-Une Entry est conservée après classification. Parmi `task_id`,
-`project_id`, `vision_id`, exactement un est renseigné si l'état est
-`classified`, aucun sinon. Ces trois colonnes sont des FK vers les
+Une Entry est conservée après classification. Parmi `task_id` et
+`project_id`, exactement un est renseigné si l'état est
+`classified`, aucun sinon. Ces deux colonnes sont des FK vers les
 objets métier et le `CHECK` correspondant rend l'association vérifiable
 en base. `classification_source` et `classified_at` sont renseignés si
 et seulement si l'état est `classified`. `reviewed_at` n'est renseigné
@@ -126,20 +130,15 @@ comprises entre 0 et 1.
 d'idempotence, y compris pour un choix manuel. Les anciennes Entries
 peuvent garder `NULL` ; aucune capture historique déjà supprimée lors
 d'une ancienne classification ne peut être reconstituée. Pas de
-`source_entry_id` sur les trois tables cibles.
+`source_entry_id` sur les deux tables cibles.
 
 Les requêtes ordinaires de la section « Non classées » de Revue ne prennent que les Entries
 `pending|failed` non supprimées ; la Revue prend les Entries
 `classified` par Jev, y compris celles avec `reviewed_at`.
 
-### visions
-
-`id`, `title`, `description?`, `status(active|paused|archived)`,
-timestamps, `deleted_at?`. Pas de dates métier.
-
 ### projects
 
-`id`, `vision_id?`, `title`, `description?`,
+`id`, `title`, `description?`,
 `status(planned|active|paused|done|cancelled)`, `start_date?`,
 `due_date?`, `started_at?`, `completed_at?`, timestamps, `deleted_at?`.
 
@@ -186,7 +185,6 @@ n'a lieu dans une transaction PostgreSQL.
 Soft delete via `deleted_at TIMESTAMPTZ NULL`. Restore : `NULL`. Purge :
 suppression physique confirmée.
 
--   delete Vision -\> Projects conservés, `vision_id=NULL`
 -   delete Project -\> Tasks autonomes, Checkpoints
     supprimés/soft-deleted
 -   delete Checkpoint -\> Tasks conservées, `checkpoint_id=NULL`
@@ -247,7 +245,7 @@ important -\> prochain créneau futur conforme à l'ancre.
 ## 11. Recherche
 
 PostgreSQL uniquement. `searchGlobal(query)` sur `title + description`
-de Tasks/Projects/Visions/Checkpoints ; Entries hors recherche globale.
+de Tasks/Projects/Checkpoints ; Entries hors recherche globale.
 
 V1 : `ILIKE`, titre prioritaire, pas de fuzzy garanti. Command palette
 avec debounce et résultats limités par type. Repository conçu pour
@@ -272,7 +270,7 @@ Tailwind pour le style ; Bits UI seulement pour primitives complexes ;
 Lucide unique pour les icônes ; JetBrains Mono initialement global.
 
 `Cmd/Ctrl+K` : recherche/navigation/actions limitées : Revue, Tasks,
-Projects, Visions, New Task/Project/Vision, recherche. Pas de système de
+Projects, New Task/Project, recherche. Pas de système de
 plugins.
 
 La navigation principale mène à `Revue`, qui expose un filtre « Non classées »
@@ -396,7 +394,7 @@ Vertical slices :
 5.  Tasks ponctuelles + autosave + statuts + dates ;
 6.  Projects + relations Tasks + `TO_BUILD` ;
 7.  Checkpoints ;
-8.  Visions ;
+8.  simplification du modèle de classification et régénération du schéma initial ;
 9.  Home `Late / In Progress / Today` et règles d'exposition ;
 10. récurrence simple + tests exhaustifs ;
 11. recherche globale + Cmd/Ctrl+K ;
@@ -434,14 +432,13 @@ vérifiée avant le déploiement en production.
 
 ### Décisions bornées
 
-Une question `choice` sélectionne `task`, `project` ou `vision`. Tout
+Une question `choice` sélectionne `task` ou `project`. Tout
 choix valide est appliqué directement, même si sa probabilité est basse ;
 la Revue permet de le corriger ensuite. Une réponse absente, invalide ou
 hors des choix laisse l'Entry non classifiée.
 
-Une seconde décision `choice` n'est utile que pour `task` ou `project` :
-`task` choisit parmi les Projects `planned|active` non supprimés ;
-`project` choisit parmi les Visions `active` non supprimées. Le choix
+Une seconde décision `choice` n'est utile que pour `task` :
+elle choisit parmi les Projects `planned|active` non supprimés. Le choix
 `none` est toujours présent. Les candidats sont bornés ; si la liste
 complète ne peut pas être présentée de façon sûre, aucun rattachement
 automatique n'est tenté. L'application vérifie l'ID choisi et l'état du
@@ -449,7 +446,7 @@ parent une nouvelle fois dans la transaction de création. La politique
 initiale ne rattache que si la probabilité du choix est au moins `0.9`
 et supérieure à celle de `none` ; ce seuil est à recalibrer avec un
 échantillon de captures françaises du propriétaire. Aucun choix Jev ne
-crée de Project ou de Vision supplémentaire.
+crée de Project supplémentaire.
 
 La règle pure `splitCapture` garde la responsabilité du titre et de la
 description. Jev ne génère ni texte, ni date, ni statut métier.
