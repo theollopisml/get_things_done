@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { Dialog } from 'bits-ui';
 	import { postAction } from '$lib/post-action';
 	import UnclassifiedCaptures from './UnclassifiedCaptures.svelte';
 	import type { PageData } from './$types';
@@ -9,12 +10,15 @@
 	let busy = $state<string | null>(null);
 	let busyAll = $state(false);
 	let editing = $state<string | null>(null);
+	let modalOpen = $state(false);
 	let errors = $state<Record<string, string>>({});
 	let pageError = $state('');
 	let unreviewedIds = $derived(
 		data.entries.filter((entry) => !entry.reviewedAt).map((entry) => entry.id)
 	);
 	let showUnclassified = $derived(data.filter === 'unclassified');
+	let activeEntry = $derived(data.entries.find((entry) => entry.id === editing));
+	let editTrigger: HTMLButtonElement | undefined;
 
 	const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 	const kindLabels = { task: 'Task', project: 'Project', vision: 'Vision' } as const;
@@ -33,8 +37,9 @@
 			new FormData(event.currentTarget as HTMLFormElement)
 		);
 		if (result.ok) {
-			await invalidateAll();
+			modalOpen = false;
 			editing = null;
+			await invalidateAll();
 		} else errors[id] = result.error || 'Action impossible. Réessaie.';
 		busy = null;
 	}
@@ -49,8 +54,9 @@
 			new FormData(event.currentTarget as HTMLFormElement)
 		);
 		if (result.ok) {
-			await invalidateAll();
+			modalOpen = false;
 			editing = null;
+			await invalidateAll();
 		} else pageError = result.error || 'Confirmation impossible. Réessaie.';
 		busyAll = false;
 	}
@@ -159,7 +165,7 @@
 						</div>
 						{#if !entry.reviewedAt || !entry.objectDeleted}
 							<div
-								class:review-actions-open={editing === entry.id}
+								class:review-actions-open={modalOpen && editing === entry.id}
 								class="review-actions flex flex-wrap items-center gap-2"
 							>
 								{#if !entry.reviewedAt}
@@ -180,106 +186,21 @@
 									<button
 										type="button"
 										class="ui-button ui-button-quiet ui-focus"
-										aria-expanded={editing === entry.id}
+										aria-haspopup="dialog"
 										disabled={busyAll || busy === entry.id}
-										onclick={() => (editing = editing === entry.id ? null : entry.id)}
+										onclick={(event) => {
+											editTrigger = event.currentTarget;
+											editing = entry.id;
+											errors[entry.id] = '';
+											modalOpen = true;
+										}}
 									>
-										{editing === entry.id ? 'Fermer' : 'Modifier'}
+										Modifier
 									</button>
 								{/if}
 							</div>
 						{/if}
 					</div>
-					{#if editing === entry.id && !entry.objectDeleted}
-						<div
-							class="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2"
-						>
-							<section class="space-y-3">
-								<div>
-									<h2 class="text-sm font-semibold text-slate-900">1. Type d’objet</h2>
-									<p class="mt-1 text-xs leading-5 text-slate-600">
-										Actuellement : {kindLabels[entry.kind]}. Le nouvel objet reprendra son titre et
-										sa description, sans rattachement.
-									</p>
-								</div>
-								<form
-									method="POST"
-									action="?/type"
-									onsubmit={(event) => submitReview(event, entry.id, 'type')}
-									class="space-y-3"
-								>
-									<input type="hidden" name="id" value={entry.id} />
-									<label class="grid gap-1 text-xs font-medium text-slate-700">
-										Nouveau type
-										<select
-											name="kind"
-											required
-											disabled={busy === entry.id}
-											class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900"
-											value=""
-										>
-											<option value="" disabled>Choisir un autre type</option>
-											{#each Object.entries(kindLabels) as [kind, label] (kind)}
-												{#if kind !== entry.kind}<option value={kind}>{label}</option>{/if}
-											{/each}
-										</select>
-									</label>
-									<button
-										type="submit"
-										disabled={busy === entry.id}
-										class="ui-button ui-button-quiet ui-focus">Changer le type</button
-									>
-								</form>
-							</section>
-							{#if entry.kind === 'task' || entry.kind === 'project'}
-								{@const options =
-									entry.kind === 'task' ? data.parents.projects : data.parents.visions}
-								<section
-									class="space-y-3 border-t border-slate-200 pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4"
-								>
-									<div>
-										<h2 class="text-sm font-semibold text-slate-900">2. Rattachement</h2>
-										<p class="mt-1 text-xs leading-5 text-slate-600">
-											{entry.kind === 'task' ? 'Projet de cette Task' : 'Vision de ce Project'} · actuel
-											: {entry.parentTitle ?? 'aucun'}
-										</p>
-									</div>
-									<form
-										method="POST"
-										action="?/relation"
-										onsubmit={(event) => submitReview(event, entry.id, 'relation')}
-										class="space-y-3"
-									>
-										<input type="hidden" name="id" value={entry.id} />
-										<label class="grid gap-1 text-xs font-medium text-slate-700">
-											{entry.kind === 'task' ? 'Projet souhaité' : 'Vision souhaitée'}
-											<select
-												name="relationId"
-												disabled={busy === entry.id}
-												class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900"
-												value={entry.parentId ?? ''}
-											>
-												<option value="">Aucun rattachement</option>
-												{#if entry.parentId && !options.some((option) => option.id === entry.parentId)}
-													<option value={entry.parentId}
-														>{entry.parentTitle ?? 'Parent indisponible'} (indisponible)</option
-													>
-												{/if}
-												{#each options as option (option.id)}<option value={option.id}
-														>{option.title}</option
-													>{/each}
-											</select>
-										</label>
-										<button
-											type="submit"
-											disabled={busy === entry.id}
-											class="ui-button ui-button-quiet ui-focus">Enregistrer le rattachement</button
-										>
-									</form>
-								</section>
-							{/if}
-						</div>
-					{/if}
 					{#if errors[entry.id]}<p role="alert" class="text-sm text-red-700">
 							{errors[entry.id]}
 						</p>{/if}
@@ -288,6 +209,138 @@
 		</div>
 	{/if}
 </div>
+
+<Dialog.Root bind:open={modalOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay class="fixed inset-0 z-40 bg-slate-950/60" />
+		{#if activeEntry && !activeEntry.objectDeleted}
+			{@const entry = activeEntry}
+			<Dialog.Content
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					editTrigger?.focus();
+				}}
+				onEscapeKeydown={(event) => {
+					if (busy) event.preventDefault();
+				}}
+				onInteractOutside={(event) => {
+					if (busy) event.preventDefault();
+				}}
+				class="fixed top-1/2 left-1/2 z-50 flex max-h-[min(90dvh,48rem)] w-[min(calc(100vw-2rem),46rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+			>
+				<div class="flex items-start justify-between gap-4 border-b border-slate-200 p-4 sm:p-6">
+					<div>
+						<Dialog.Title class="text-xl font-semibold text-slate-950"
+							>Modifier la classification</Dialog.Title
+						>
+						<Dialog.Description class="mt-1 text-sm text-slate-600"
+							>Corrige le type ou le rattachement choisi par Jev.</Dialog.Description
+						>
+					</div>
+					<button
+						type="button"
+						disabled={busy === entry.id}
+						onclick={() => (modalOpen = false)}
+						class="ui-button ui-button-quiet ui-focus shrink-0"
+						aria-label="Fermer la modale">Fermer</button
+					>
+				</div>
+				<div class="space-y-5 overflow-y-auto p-4 sm:p-6">
+					<p class="text-sm break-words whitespace-pre-wrap text-slate-700">{entry.rawContent}</p>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<section class="space-y-3">
+							<div>
+								<h2 class="text-sm font-semibold text-slate-900">1. Type d’objet</h2>
+								<p class="mt-1 text-xs leading-5 text-slate-600">
+									Actuellement : {kindLabels[entry.kind]}. Le nouvel objet reprendra son titre et sa
+									description, sans rattachement.
+								</p>
+							</div>
+							<form
+								method="POST"
+								action="?/type"
+								onsubmit={(event) => submitReview(event, entry.id, 'type')}
+								class="space-y-3"
+							>
+								<input type="hidden" name="id" value={entry.id} />
+								<label class="grid gap-1 text-xs font-medium text-slate-700">
+									Nouveau type
+									<select
+										name="kind"
+										required
+										disabled={busy === entry.id}
+										class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900"
+										value=""
+									>
+										<option value="" disabled>Choisir un autre type</option>
+										{#each Object.entries(kindLabels) as [kind, label] (kind)}
+											{#if kind !== entry.kind}<option value={kind}>{label}</option>{/if}
+										{/each}
+									</select>
+								</label>
+								<button
+									type="submit"
+									disabled={busy === entry.id}
+									class="ui-button ui-button-quiet ui-focus">Changer le type</button
+								>
+							</form>
+						</section>
+						{#if entry.kind === 'task' || entry.kind === 'project'}
+							{@const options =
+								entry.kind === 'task' ? data.parents.projects : data.parents.visions}
+							<section
+								class="space-y-3 border-t border-slate-200 pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4"
+							>
+								<div>
+									<h2 class="text-sm font-semibold text-slate-900">2. Rattachement</h2>
+									<p class="mt-1 text-xs leading-5 text-slate-600">
+										{entry.kind === 'task' ? 'Projet de cette Task' : 'Vision de ce Project'} · actuel
+										: {entry.parentTitle ?? 'aucun'}
+									</p>
+								</div>
+								<form
+									method="POST"
+									action="?/relation"
+									onsubmit={(event) => submitReview(event, entry.id, 'relation')}
+									class="space-y-3"
+								>
+									<input type="hidden" name="id" value={entry.id} />
+									<label class="grid gap-1 text-xs font-medium text-slate-700">
+										{entry.kind === 'task' ? 'Projet souhaité' : 'Vision souhaitée'}
+										<select
+											name="relationId"
+											disabled={busy === entry.id}
+											class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900"
+											value={entry.parentId ?? ''}
+										>
+											<option value="">Aucun rattachement</option>
+											{#if entry.parentId && !options.some((option) => option.id === entry.parentId)}
+												<option value={entry.parentId}
+													>{entry.parentTitle ?? 'Parent indisponible'} (indisponible)</option
+												>
+											{/if}
+											{#each options as option (option.id)}<option value={option.id}
+													>{option.title}</option
+												>{/each}
+										</select>
+									</label>
+									<button
+										type="submit"
+										disabled={busy === entry.id}
+										class="ui-button ui-button-quiet ui-focus">Enregistrer le rattachement</button
+									>
+								</form>
+							</section>
+						{/if}
+					</div>
+					{#if errors[entry.id]}<p role="alert" class="text-sm text-red-700">
+							{errors[entry.id]}
+						</p>{/if}
+				</div>
+			</Dialog.Content>
+		{/if}
+	</Dialog.Portal>
+</Dialog.Root>
 
 <style>
 	@media (hover: hover) and (min-width: 640px) {
