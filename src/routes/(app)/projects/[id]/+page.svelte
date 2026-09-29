@@ -7,6 +7,7 @@
 	import type { ProjectStatus } from '$lib/domain/projects';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
+	import CheckpointCard from './CheckpointCard.svelte';
 	import TaskCard from '../../tasks/TaskCard.svelte';
 	import type { PageData } from './$types';
 
@@ -29,6 +30,8 @@
 	let confirmError = $state('');
 	let newTask = $state('');
 	let creatingTask = $state(false);
+	let newCheckpoint = $state('');
+	let creatingCheckpoint = $state(false);
 	let undo = $state<{ taskId: string; projectId: string | null; position: number | null } | null>(
 		null
 	);
@@ -139,6 +142,62 @@
 			await invalidateAll();
 		} else error = response.error || 'Création impossible. Réessaie.';
 		creatingTask = false;
+	}
+
+	async function createCheckpoint(event: SubmitEvent) {
+		event.preventDefault();
+		if (creatingCheckpoint || !(await save())) return;
+		creatingCheckpoint = true;
+		error = '';
+		const response = await postAction(
+			`${projectPath}?/createCheckpoint`,
+			form({ title: newCheckpoint })
+		);
+		if (response.ok) {
+			newCheckpoint = '';
+			await invalidateAll();
+		} else error = response.error || 'Création impossible. Réessaie.';
+		creatingCheckpoint = false;
+	}
+
+	async function reorderCheckpoint(id: string, direction: -1 | 1) {
+		if (busy || !(await save())) return;
+		const ids = data.project.checkpoints.map((checkpoint) => checkpoint.id);
+		const index = ids.indexOf(id);
+		if (index < 0 || index + direction < 0 || index + direction >= ids.length) return;
+		[ids[index], ids[index + direction]] = [ids[index + direction], ids[index]];
+		const fields = new FormData();
+		for (const checkpointId of ids) fields.append('checkpointId', checkpointId);
+		busy = true;
+		error = '';
+		const response = await postAction(`${projectPath}?/reorderCheckpoints`, fields);
+		if (response.ok) await invalidateAll();
+		else error = response.error || 'Réordonnancement impossible. Réessaie.';
+		busy = false;
+	}
+
+	async function linkCheckpoint(
+		taskId: string,
+		checkpointId: string,
+		previousId: string | null,
+		select: HTMLSelectElement
+	) {
+		if (busy || !(await save())) {
+			select.value = previousId ?? '';
+			return;
+		}
+		busy = true;
+		error = '';
+		const response = await postAction(
+			`${projectPath}?/linkCheckpoint`,
+			form({ taskId, checkpointId })
+		);
+		if (response.ok) await invalidateAll();
+		else {
+			select.value = previousId ?? '';
+			error = response.error || 'Rattachement impossible. Réessaie.';
+		}
+		busy = false;
 	}
 
 	async function taskStatus(id: string, next: TaskStatus) {
@@ -318,6 +377,58 @@
 				Terminé le {new Date(data.project.completedAt).toLocaleDateString('fr-FR')}
 			</p>{/if}
 	</section>
+	<section class="space-y-4" aria-label="Checkpoints du Project">
+		<div>
+			<h2 class="text-xl font-semibold text-slate-950">Checkpoints</h2>
+			<p class="mt-1 text-sm text-slate-600">Jalons du Project, distincts des Tasks.</p>
+		</div>
+		<form
+			onsubmit={createCheckpoint}
+			class="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+		>
+			<label for="new-checkpoint" class="sr-only">Nouveau Checkpoint</label>
+			<input
+				id="new-checkpoint"
+				bind:value={newCheckpoint}
+				placeholder="Nouveau Checkpoint…"
+				required
+				maxlength="500"
+				class="ui-focus min-h-11 min-w-48 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
+			/>
+			<button
+				type="submit"
+				disabled={creatingCheckpoint}
+				class="ui-button ui-button-primary ui-focus"
+				>{creatingCheckpoint ? 'Création…' : 'Ajouter'}</button
+			>
+		</form>
+		{#each data.project.checkpoints as checkpoint, index (checkpoint.id)}
+			<div class="space-y-2">
+				<CheckpointCard {checkpoint} projectId={data.project.id} onUpdated={invalidateAll} />
+				<div class="flex gap-2 pl-1">
+					<button
+						type="button"
+						disabled={busy || index === 0}
+						onclick={() => reorderCheckpoint(checkpoint.id, -1)}
+						class="ui-button ui-button-quiet ui-focus"
+						aria-label={`Monter ${checkpoint.title}`}>↑</button
+					>
+					<button
+						type="button"
+						disabled={busy || index === data.project.checkpoints.length - 1}
+						onclick={() => reorderCheckpoint(checkpoint.id, 1)}
+						class="ui-button ui-button-quiet ui-focus"
+						aria-label={`Descendre ${checkpoint.title}`}>↓</button
+					>
+				</div>
+			</div>
+		{/each}
+		{#if !data.project.checkpoints.length}<p
+				class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600"
+			>
+				Aucun Checkpoint dans ce Project.
+			</p>{/if}
+	</section>
 	<section class="space-y-4" aria-label="Tasks du Project">
 		<div>
 			<h2 class="text-xl font-semibold text-slate-950">Tasks</h2>
@@ -387,6 +498,24 @@
 										><option value="">Aucun</option
 										>{#each data.projectOptions as option (option.id)}<option value={option.id}
 												>{option.title}</option
+											>{/each}</select
+									></label
+								>
+								<label class="flex items-center gap-2"
+									>Checkpoint<select
+										value={task.checkpointId ?? ''}
+										disabled={busy}
+										onchange={(event) =>
+											linkCheckpoint(
+												task.id,
+												event.currentTarget.value,
+												task.checkpointId,
+												event.currentTarget
+											)}
+										class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
+										><option value="">Aucun</option
+										>{#each data.project.checkpoints as checkpoint (checkpoint.id)}<option
+												value={checkpoint.id}>{checkpoint.title}</option
 											>{/each}</select
 									></label
 								>

@@ -131,20 +131,20 @@ slices:
 
   - id: "07"
     name: checkpoints
-    done: false
+    done: true
     tasks:
       - description: "Créer le modèle Checkpoint"
         done: true
       - description: "Permettre la création uniquement depuis un Project"
-        done: false
+        done: true
       - description: "Implémenter OPEN/DONE/CANCELLED"
-        done: false
+        done: true
       - description: "Relier une Task à zéro ou un Checkpoint du même Project"
-        done: false
+        done: true
       - description: "Implémenter l'ordre manuel"
-        done: false
+        done: true
       - description: "Afficher Checkpoints et Tasks comme sections distinctes"
-        done: false
+        done: true
 
   - id: "08"
     name: visions

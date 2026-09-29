@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Manage Checkpoints within a Project with optional target dates, Markdown descriptions, manual order, and open, done, or cancelled status.
+- Link each Project Task to at most one Checkpoint in the same Project, and clear an incompatible link when moving the Task.
 - Create Projects from the overview and manage their details, dates, status, and linked Tasks from a dedicated page.
 - Move Tasks between Projects or detach them with Undo, add Tasks within a Project, and reorder them locally.
 - Show factual Task and Checkpoint counts and a calculated TO_BUILD indicator for empty open Projects.

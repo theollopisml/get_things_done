@@ -109,4 +109,107 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Project routes', () => {
 			await db.delete(projects).where(eq(projects.id, project.id));
 		}
 	});
+
+	it('manages Checkpoints and Task links through the Project detail actions', async () => {
+		const { db } = await import('$lib/server/db');
+		const { checkpoints, projects, tasks } = await import('$lib/server/db/schema');
+		const { eq } = await import('drizzle-orm');
+		const detail = await import('./[id]/+page.server');
+		const [project] = await db.insert(projects).values({ title: 'Projet avec jalons' }).returning();
+		const [task] = await db
+			.insert(tasks)
+			.values({ title: 'Action', projectId: project.id })
+			.returning();
+		const createdIds: string[] = [];
+		try {
+			for (const title of ['Premier', 'Second']) {
+				const form = new FormData();
+				form.set('title', title);
+				const result = await detail.actions.createCheckpoint({
+					params: { id: project.id },
+					request: new Request(`http://localhost/projects/${project.id}?/createCheckpoint`, {
+						method: 'POST',
+						body: form
+					})
+				} as Parameters<typeof detail.actions.createCheckpoint>[0]);
+				if (!('id' in result)) throw new Error('Checkpoint creation failed');
+				createdIds.push(result.id);
+			}
+			const [firstId, secondId] = createdIds;
+			const edit = new FormData();
+			for (const [name, value] of Object.entries({
+				id: firstId,
+				title: 'Premier modifié',
+				description: 'Livrable',
+				targetDate: '2026-10-10'
+			}))
+				edit.set(name, value);
+			expect(
+				await detail.actions.saveCheckpoint({
+					params: { id: project.id },
+					request: new Request(`http://localhost/projects/${project.id}?/saveCheckpoint`, {
+						method: 'POST',
+						body: edit
+					})
+				} as Parameters<typeof detail.actions.saveCheckpoint>[0])
+			).toEqual({ saved: true });
+			const status = new FormData();
+			status.set('id', firstId);
+			status.set('status', 'done');
+			expect(
+				await detail.actions.checkpointStatus({
+					params: { id: project.id },
+					request: new Request(`http://localhost/projects/${project.id}?/checkpointStatus`, {
+						method: 'POST',
+						body: status
+					})
+				} as Parameters<typeof detail.actions.checkpointStatus>[0])
+			).toEqual({ saved: true });
+			const order = new FormData();
+			order.append('checkpointId', secondId);
+			order.append('checkpointId', firstId);
+			expect(
+				await detail.actions.reorderCheckpoints({
+					params: { id: project.id },
+					request: new Request(`http://localhost/projects/${project.id}?/reorderCheckpoints`, {
+						method: 'POST',
+						body: order
+					})
+				} as Parameters<typeof detail.actions.reorderCheckpoints>[0])
+			).toEqual({ saved: true });
+			const link = new FormData();
+			link.set('taskId', task.id);
+			link.set('checkpointId', firstId);
+			expect(
+				await detail.actions.linkCheckpoint({
+					params: { id: project.id },
+					request: new Request(`http://localhost/projects/${project.id}?/linkCheckpoint`, {
+						method: 'POST',
+						body: link
+					})
+				} as Parameters<typeof detail.actions.linkCheckpoint>[0])
+			).toEqual({ saved: true });
+			const loaded = (await detail.load({ params: { id: project.id } } as Parameters<
+				typeof detail.load
+			>[0])) as {
+				project: {
+					checkpoints: { id: string; title: string; status: string }[];
+					tasks: { checkpointId: string | null }[];
+				};
+			};
+			expect(loaded.project.checkpoints.map((checkpoint) => checkpoint.id)).toEqual([
+				secondId,
+				firstId
+			]);
+			expect(loaded.project.checkpoints[1]).toMatchObject({
+				title: 'Premier modifié',
+				status: 'done'
+			});
+			expect(loaded.project.tasks[0].checkpointId).toBe(firstId);
+		} finally {
+			await db.delete(tasks).where(eq(tasks.id, task.id));
+			for (const id of createdIds) await db.delete(checkpoints).where(eq(checkpoints.id, id));
+			await db.delete(projects).where(eq(projects.id, project.id));
+		}
+	});
 });
