@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Edit Checkpoints in a centered dialog with autosave and retry, matching the Task editor.
 - Confirm Project cancellation and closure with open Tasks in a centered in-app dialog that explains what happens to the Tasks.
 - Open Task editing in a focused modal while preserving autosave, retry, and unsaved input on save errors.
 - Put Review in the desktop and mobile navigation and show unclassified captures in a discreet Review filter.
