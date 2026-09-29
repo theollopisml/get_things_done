@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Let users remove a quick due-date badge with Backspace at the start of the Collector or Task field, and choose slash suggestions with arrow keys and Enter.
 - Replace native Task and Project dropdowns with consistent accessible menus and aligned chevrons.
 - Center the Collector text vertically in its compact field and use a subtle slate focus treatment.
 - Keep classification, Review corrections, and Project pages focused on Tasks and Projects; a Project has no parent category.

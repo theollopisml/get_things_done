@@ -23,6 +23,8 @@
 	let dueDate = $state<string | null>(null);
 	let dueLabel = $state('');
 	let calendarOpen = $state(false);
+	let suggestionsOpen = $state(true);
+	let activeSuggestion = $state(0);
 	let dateInput = $state<HTMLInputElement>();
 	let matchingCommands = $derived(
 		content.startsWith('/')
@@ -82,6 +84,7 @@
 
 	function selectDueCommand(command: DueShortcut | 'date') {
 		if (content.startsWith('/')) content = content.replace(/^\/\S* ?/, '');
+		suggestionsOpen = false;
 		if (command === 'date') void openCalendar();
 		else {
 			chooseDueShortcut(command);
@@ -95,9 +98,14 @@
 		if (parsed) {
 			input.value = parsed.rest;
 			content = parsed.rest;
+			suggestionsOpen = false;
 			if (parsed.command === 'date') void openCalendar();
 			else chooseDueShortcut(parsed.command);
-		} else content = input.value;
+		} else {
+			content = input.value;
+			suggestionsOpen = true;
+			activeSuggestion = 0;
+		}
 		error = '';
 	}
 
@@ -346,17 +354,42 @@
 	}
 
 	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-			const command = /^\/(today|thisweek|thismonth|thisyear|date)$/.exec(content);
-			if (command) {
+		if (event.isComposing) return;
+		const input = event.currentTarget as HTMLTextAreaElement;
+		if (
+			event.key === 'Backspace' &&
+			dueDate &&
+			input.selectionStart === 0 &&
+			input.selectionEnd === 0
+		) {
+			event.preventDefault();
+			dueDate = null;
+			dueLabel = '';
+			calendarOpen = false;
+			return;
+		}
+		if (suggestionsOpen && matchingCommands.length) {
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 				event.preventDefault();
-				selectDueCommand(command[1] as DueShortcut | 'date');
+				activeSuggestion =
+					(activeSuggestion + (event.key === 'ArrowDown' ? 1 : -1) + matchingCommands.length) %
+					matchingCommands.length;
 				return;
 			}
+			if (event.key === 'Enter' && !event.shiftKey) {
+				event.preventDefault();
+				selectDueCommand(matchingCommands[activeSuggestion] ?? matchingCommands[0]);
+				return;
+			}
+		}
+		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
 			event.preventDefault();
 			form.requestSubmit(entryButton);
 		}
-		if (event.key === 'Escape') calendarOpen = false;
+		if (event.key === 'Escape') {
+			suggestionsOpen = false;
+			calendarOpen = false;
+		}
 	}
 </script>
 
@@ -434,6 +467,15 @@
 				{/if}
 				<textarea
 					id="capture"
+					role="combobox"
+					aria-autocomplete="list"
+					aria-expanded={suggestionsOpen && matchingCommands.length > 0}
+					aria-controls={suggestionsOpen && matchingCommands.length
+						? 'capture-due-suggestions'
+						: undefined}
+					aria-activedescendant={suggestionsOpen && matchingCommands.length
+						? `capture-due-suggestion-${activeSuggestion}`
+						: undefined}
 					name="rawContent"
 					value={content}
 					oninput={onCaptureInput}
@@ -455,15 +497,22 @@
 				</button>
 			</div>
 			{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
-			{#if matchingCommands.length}
+			{#if suggestionsOpen && matchingCommands.length}
 				<div
+					id="capture-due-suggestions"
+					role="listbox"
 					class="absolute top-full left-2 z-20 mt-1 flex w-[min(18rem,calc(100vw-2rem))] flex-col rounded-xl border border-slate-300 bg-white p-1 shadow-lg"
 					aria-label="Raccourcis d’échéance"
 				>
-					{#each matchingCommands as command (command)}
+					{#each matchingCommands as command, index (command)}
 						<button
+							id={`capture-due-suggestion-${index}`}
+							role="option"
+							aria-selected={activeSuggestion === index}
 							type="button"
 							class="ui-focus flex min-h-10 items-center justify-between rounded-lg px-3 text-left text-sm hover:bg-slate-100"
+							class:bg-slate-100={activeSuggestion === index}
+							onmouseenter={() => (activeSuggestion = index)}
 							onclick={() => selectDueCommand(command)}
 						>
 							<span>/{command}</span>

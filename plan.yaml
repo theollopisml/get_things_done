@@ -207,6 +207,8 @@ slices:
         done: true
       - description: "Tester les bornes calendaires, la création datée, l’idempotence et les relances avec PostgreSQL"
         done: true
+      - description: "Retirer le badge avec Retour arrière au début du champ et parcourir les suggestions / au clavier"
+        done: true
 
   - id: "10"
     name: recurrence
