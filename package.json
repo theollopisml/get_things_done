@@ -22,7 +22,8 @@
 		"test:integration": "RUN_DB_TESTS=1 vitest run src/lib/server/application/captures.integration.test.ts src/lib/server/application/tasks.integration.test.ts src/lib/server/application/projects.integration.test.ts src/lib/server/application/project-tasks.integration.test.ts src/lib/server/application/checkpoints.integration.test.ts src/lib/server/repositories/jev-candidates.integration.test.ts 'src/routes/(app)/review/review.integration.test.ts' 'src/routes/(app)/projects/projects.integration.test.ts'",
 		"test": "pnpm test:unit",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate"
+		"db:migrate": "drizzle-kit migrate",
+		"db:reset:dev": "node scripts/reset-dev-db.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

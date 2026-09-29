@@ -39,6 +39,18 @@ docker compose down
 
 `docker compose down` conserve le volume et les données.
 
+Pour remettre à zéro uniquement la base locale de développement et réappliquer
+toutes les migrations :
+
+```sh
+pnpm db:reset:dev
+```
+
+Cette commande efface définitivement les données de `get_things_done`, y compris
+les sessions. Elle refuse une `DATABASE_URL` différente de la base locale Docker
+attendue ; il faut ensuite se reconnecter à l'application. Les autres bases et
+volumes Docker ne sont pas supprimés.
+
 Après une modification d'un schéma dans `src/lib/server/db/`, générer
 une migration avec `pnpm db:generate`, relire son SQL dans
 `drizzle/migrations/`, puis l'appliquer avec `pnpm db:migrate`.
