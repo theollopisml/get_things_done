@@ -19,9 +19,26 @@
 	let showUnclassified = $derived(data.filter === 'unclassified');
 	let activeEntry = $derived(data.entries.find((entry) => entry.id === editing));
 	let editTrigger: HTMLButtonElement | undefined;
+	let selectedKind = $state('');
+	let selectedRelation = $state('');
+	let parentSearch = $state('');
 
 	const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 	const kindLabels = { task: 'Task', project: 'Project', vision: 'Vision' } as const;
+
+	function openEditor(entry: PageData['entries'][number], trigger: HTMLButtonElement) {
+		const options = entry.kind === 'task' ? data.parents.projects : data.parents.visions;
+		editTrigger = trigger;
+		editing = entry.id;
+		selectedKind = '';
+		selectedRelation =
+			entry.parentId && options.some((option) => option.id === entry.parentId)
+				? entry.parentId
+				: '';
+		parentSearch = '';
+		errors[entry.id] = '';
+		modalOpen = true;
+	}
 
 	async function submitReview(
 		event: SubmitEvent,
@@ -188,12 +205,7 @@
 										class="ui-button ui-button-quiet ui-focus"
 										aria-haspopup="dialog"
 										disabled={busyAll || busy === entry.id}
-										onclick={(event) => {
-											editTrigger = event.currentTarget;
-											editing = entry.id;
-											errors[entry.id] = '';
-											modalOpen = true;
-										}}
+										onclick={(event) => openEditor(entry, event.currentTarget)}
 									>
 										Modifier
 									</button>
@@ -247,87 +259,184 @@
 				</div>
 				<div class="space-y-5 overflow-y-auto p-4 sm:p-6">
 					<p class="text-sm break-words whitespace-pre-wrap text-slate-700">{entry.rawContent}</p>
-					<div class="grid gap-4 sm:grid-cols-2">
-						<section class="space-y-3">
-							<div>
-								<h2 class="text-sm font-semibold text-slate-900">1. Type d’objet</h2>
-								<p class="mt-1 text-xs leading-5 text-slate-600">
-									Actuellement : {kindLabels[entry.kind]}. Le nouvel objet reprendra son titre et sa
-									description, sans rattachement.
+					<div class="grid items-stretch gap-3 {entry.kind === 'vision' ? '' : 'sm:grid-cols-2'}">
+						<section class="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
+							<div class="sm:min-h-24">
+								<h2 class="flex items-center gap-2 text-sm font-semibold text-slate-950">
+									<span
+										class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs text-white"
+										>1</span
+									>
+									Type d’objet
+								</h2>
+								<p class="mt-2 text-xs leading-5 text-slate-600">
+									Actuel : {kindLabels[entry.kind]}. Le titre et la description seront conservés.
 								</p>
 							</div>
 							<form
 								method="POST"
 								action="?/type"
 								onsubmit={(event) => submitReview(event, entry.id, 'type')}
-								class="space-y-3"
+								class="mt-4 flex flex-1 flex-col gap-4"
 							>
 								<input type="hidden" name="id" value={entry.id} />
-								<label class="grid gap-1 text-xs font-medium text-slate-700">
-									Nouveau type
-									<select
-										name="kind"
-										required
-										disabled={busy === entry.id}
-										class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900"
-										value=""
-									>
-										<option value="" disabled>Choisir un autre type</option>
-										{#each Object.entries(kindLabels) as [kind, label] (kind)}
-											{#if kind !== entry.kind}<option value={kind}>{label}</option>{/if}
-										{/each}
-									</select>
-								</label>
+								<input type="hidden" name="kind" value={selectedKind} />
+								<fieldset class="space-y-2">
+									<legend class="mb-2 text-xs font-medium text-slate-700">Nouveau type</legend>
+									{#each Object.entries(kindLabels) as [kind, label] (kind)}
+										{#if kind !== entry.kind}
+											<label
+												class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2 {selectedKind ===
+												kind
+													? 'border-slate-900 bg-white text-slate-950 shadow-sm'
+													: 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'}"
+											>
+												<input
+													type="radio"
+													name="kindChoice"
+													bind:group={selectedKind}
+													value={kind}
+													disabled={busy === entry.id}
+													class="sr-only"
+												/>
+												<span>{label}</span>
+												<span
+													aria-hidden="true"
+													class="ml-auto size-4 rounded-full border {selectedKind === kind
+														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_white]'
+														: 'border-slate-300 bg-white'}"
+												></span>
+											</label>
+										{/if}
+									{/each}
+								</fieldset>
+								<p class="text-xs leading-5 text-slate-500">
+									Le nouvel objet sera sans rattachement.
+								</p>
 								<button
 									type="submit"
-									disabled={busy === entry.id}
-									class="ui-button ui-button-quiet ui-focus">Changer le type</button
+									disabled={busy === entry.id || !selectedKind}
+									class="ui-button ui-button-primary ui-focus mt-auto w-full"
+									>Changer le type</button
 								>
 							</form>
 						</section>
 						{#if entry.kind === 'task' || entry.kind === 'project'}
 							{@const options =
 								entry.kind === 'task' ? data.parents.projects : data.parents.visions}
-							<section
-								class="space-y-3 border-t border-slate-200 pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4"
-							>
-								<div>
-									<h2 class="text-sm font-semibold text-slate-900">2. Rattachement</h2>
-									<p class="mt-1 text-xs leading-5 text-slate-600">
-										{entry.kind === 'task' ? 'Projet de cette Task' : 'Vision de ce Project'} · actuel
-										: {entry.parentTitle ?? 'aucun'}
+							{@const filteredOptions = options.filter((option) =>
+								option.title
+									.toLocaleLowerCase('fr')
+									.includes(parentSearch.trim().toLocaleLowerCase('fr'))
+							)}
+							<section class="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
+								<div class="sm:min-h-24">
+									<h2 class="flex items-center gap-2 text-sm font-semibold text-slate-950">
+										<span
+											class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs text-white"
+											>2</span
+										>
+										Rattachement
+									</h2>
+									<p class="mt-2 text-xs leading-5 text-slate-600">
+										Actuel : <span
+											class="inline-block max-w-40 truncate align-bottom font-medium text-slate-800"
+											title={entry.parentTitle ?? undefined}>{entry.parentTitle ?? 'Aucun'}</span
+										>.
+										{entry.kind === 'task' ? 'Choisis un Project.' : 'Choisis une Vision.'}
 									</p>
 								</div>
 								<form
 									method="POST"
 									action="?/relation"
 									onsubmit={(event) => submitReview(event, entry.id, 'relation')}
-									class="space-y-3"
+									class="mt-4 flex flex-1 flex-col gap-4"
 								>
 									<input type="hidden" name="id" value={entry.id} />
-									<label class="grid gap-1 text-xs font-medium text-slate-700">
-										{entry.kind === 'task' ? 'Projet souhaité' : 'Vision souhaitée'}
-										<select
-											name="relationId"
-											disabled={busy === entry.id}
-											class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900"
-											value={entry.parentId ?? ''}
+									<input type="hidden" name="relationId" value={selectedRelation} />
+									<div>
+										<label
+											for="review-parent-search"
+											class="mb-2 block text-xs font-medium text-slate-700"
+											>{entry.kind === 'task' ? 'Projet souhaité' : 'Vision souhaitée'}</label
 										>
-											<option value="">Aucun rattachement</option>
-											{#if entry.parentId && !options.some((option) => option.id === entry.parentId)}
-												<option value={entry.parentId}
-													>{entry.parentTitle ?? 'Parent indisponible'} (indisponible)</option
+										<input
+											id="review-parent-search"
+											type="search"
+											bind:value={parentSearch}
+											placeholder="Rechercher…"
+											disabled={busy === entry.id || options.length === 0}
+											class="ui-focus min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400"
+										/>
+									</div>
+									<fieldset class="min-w-0 space-y-2">
+										<legend class="sr-only">Rattachement</legend>
+										<div class="max-h-40 space-y-2 overflow-y-auto pr-1">
+											<label
+												class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2 {selectedRelation ===
+												''
+													? 'border-slate-900 bg-white text-slate-950 shadow-sm'
+													: 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'}"
+											>
+												<input
+													type="radio"
+													name="relationChoice"
+													bind:group={selectedRelation}
+													value=""
+													disabled={busy === entry.id}
+													class="sr-only"
+												/>
+												<span>Aucun rattachement</span>
+												<span
+													aria-hidden="true"
+													class="ml-auto size-4 shrink-0 rounded-full border {selectedRelation ===
+													''
+														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_white]'
+														: 'border-slate-300 bg-white'}"
+												></span>
+											</label>
+											{#each filteredOptions as option (option.id)}
+												<label
+													class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2 {selectedRelation ===
+													option.id
+														? 'border-slate-900 bg-white text-slate-950 shadow-sm'
+														: 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'}"
 												>
-											{/if}
-											{#each options as option (option.id)}<option value={option.id}
-													>{option.title}</option
-												>{/each}
-										</select>
-									</label>
+													<input
+														type="radio"
+														name="relationChoice"
+														bind:group={selectedRelation}
+														value={option.id}
+														disabled={busy === entry.id}
+														class="sr-only"
+													/>
+													<span class="min-w-0 break-words">{option.title}</span>
+													<span
+														aria-hidden="true"
+														class="ml-auto size-4 shrink-0 rounded-full border {selectedRelation ===
+														option.id
+															? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_white]'
+															: 'border-slate-300 bg-white'}"
+													></span>
+												</label>
+											{/each}
+											{#if parentSearch && filteredOptions.length === 0}<p
+													class="px-1 py-2 text-xs text-slate-500"
+												>
+													Aucun résultat.
+												</p>{/if}
+										</div>
+									</fieldset>
+									{#if entry.parentId && !options.some((option) => option.id === entry.parentId)}<p
+											class="text-xs text-amber-700"
+										>
+											Le rattachement actuel n’est plus disponible.
+										</p>{/if}
 									<button
 										type="submit"
-										disabled={busy === entry.id}
-										class="ui-button ui-button-quiet ui-focus">Enregistrer le rattachement</button
+										disabled={busy === entry.id || selectedRelation === (entry.parentId ?? '')}
+										class="ui-button ui-button-primary ui-focus mt-auto w-full"
+										>Enregistrer le rattachement</button
 									>
 								</form>
 							</section>
