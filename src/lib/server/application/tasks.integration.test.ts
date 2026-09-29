@@ -60,24 +60,34 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('one-off Tasks with PostgreSQL'
 		const { projects, tasks } = await import('$lib/server/db/schema');
 		const { eq } = await import('drizzle-orm');
 		const { listTasks } = await import('$lib/server/repositories/tasks');
+		const { groupHomeTasks } = await import('$lib/domain/home');
 		const [project] = await db
 			.insert(projects)
 			.values({ title: 'Projet test', status: 'paused' })
 			.returning();
-		const [plain, dated] = await db
+		const [plain, dated, overdue] = await db
 			.insert(tasks)
 			.values([
 				{ title: 'Sans date', projectId: project.id, status: 'in_progress' },
-				{ title: 'Avec date', projectId: project.id, scheduledDate: '2026-10-01' }
+				{ title: 'Avec date', projectId: project.id, scheduledDate: '2026-10-01' },
+				{ title: 'En retard', projectId: project.id, dueDate: '2026-09-30' }
 			])
 			.returning();
 		try {
 			let listed = await listTasks(false);
 			expect(listed.some((task) => task.id === plain.id)).toBe(false);
 			expect(listed.some((task) => task.id === dated.id)).toBe(true);
+			let home = groupHomeTasks(listed, '2026-10-01', '12:00');
+			expect(home.today.map((task) => task.id)).toContain(dated.id);
+			expect(home.late.map((task) => task.id)).toContain(overdue.id);
+			expect(home.in_progress.map((task) => task.id)).not.toContain(plain.id);
 			await db.update(projects).set({ status: 'done' }).where(eq(projects.id, project.id));
 			listed = await listTasks(false);
 			expect(listed.some((task) => task.id === dated.id)).toBe(false);
+			home = groupHomeTasks(listed, '2026-10-01', '12:00');
+			expect(
+				[...home.late, ...home.in_progress, ...home.today].some((task) => task.id === overdue.id)
+			).toBe(false);
 		} finally {
 			await db.delete(tasks).where(eq(tasks.projectId, project.id));
 			await db.delete(projects).where(eq(projects.id, project.id));

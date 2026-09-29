@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Show Late, In Progress, and Today Tasks beneath the Home Collector, with quick actions, Undo, and local time updates.
+- Show Home counts for Jev classifications awaiting review and failed captures.
+- Keep each Home Task in one section while honoring paused and closed Project exposure rules.
 - Add a dark theme by default with a light mode switch on login and in the app, persisting the browser's choice.
 - Add a guarded `pnpm db:reset:dev` command to recreate the local development database and reapply migrations.
 - Manage Checkpoints within a Project with optional target dates, Markdown descriptions, manual order, and open, done, or cancelled status.

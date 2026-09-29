@@ -174,20 +174,20 @@ slices:
 
   - id: "09"
     name: home
-    done: false
+    done: true
     tasks:
       - description: "Créer la Home autour du Collector"
-        done: false
+        done: true
       - description: "Implémenter Late"
-        done: false
+        done: true
       - description: "Implémenter In Progress"
-        done: false
+        done: true
       - description: "Implémenter Today"
-        done: false
+        done: true
       - description: "Dédupliquer une Task présente dans plusieurs catégories"
-        done: false
+        done: true
       - description: "Respecter les règles PAUSED/DONE/CANCELLED des Projects"
-        done: false
+        done: true
 
   - id: "10"
     name: recurrence

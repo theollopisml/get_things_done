@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
 import { checkpoints, entries, projects, tasks } from '$lib/server/db/schema';
@@ -8,6 +8,27 @@ import type { JevClassification } from '$lib/server/jev/classification';
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const taskParentProject = alias(projects, 'review_task_parent_project');
+
+export async function countReviewAttention() {
+	const [[unreviewed], [failed]] = await Promise.all([
+		db
+			.select({ value: count() })
+			.from(entries)
+			.where(
+				and(
+					isNull(entries.deletedAt),
+					eq(entries.classificationState, 'classified'),
+					eq(entries.classificationSource, 'jev'),
+					isNull(entries.reviewedAt)
+				)
+			),
+		db
+			.select({ value: count() })
+			.from(entries)
+			.where(and(isNull(entries.deletedAt), eq(entries.classificationState, 'failed')))
+	]);
+	return { unreviewed: unreviewed.value, failed: failed.value };
+}
 
 export async function listJevReviewEntries(onlyUnreviewed = false) {
 	const rows = await db
