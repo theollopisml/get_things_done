@@ -11,13 +11,13 @@
 
 	type Task = PageData['tasks'][number];
 	const weekdays = [
-		{ day: 1, label: 'Lun' },
-		{ day: 2, label: 'Mar' },
-		{ day: 3, label: 'Mer' },
-		{ day: 4, label: 'Jeu' },
-		{ day: 5, label: 'Ven' },
-		{ day: 6, label: 'Sam' },
-		{ day: 7, label: 'Dim' }
+		{ day: 1, label: 'Lun', name: 'Lundi' },
+		{ day: 2, label: 'Mar', name: 'Mardi' },
+		{ day: 3, label: 'Mer', name: 'Mercredi' },
+		{ day: 4, label: 'Jeu', name: 'Jeudi' },
+		{ day: 5, label: 'Ven', name: 'Vendredi' },
+		{ day: 6, label: 'Sam', name: 'Samedi' },
+		{ day: 7, label: 'Dim', name: 'Dimanche' }
 	];
 	const recurrenceOptions = [
 		{ value: '', label: 'Aucune' },
@@ -338,26 +338,68 @@
 							class="ui-focus w-full rounded-lg border border-slate-300 p-3"></textarea>
 					{/if}
 				</div>
-				<label class="grid gap-1 text-sm"
-					>Date planifiée<input
+				<div class="group relative grid gap-1 text-sm">
+					<div class="flex items-center gap-2">
+						<label for={`task-scheduled-date-${task.id}`}>Date planifiée</label>
+						{#if !value.scheduledDate}<button
+								type="button"
+								aria-label="Pourquoi choisir une date planifiée ?"
+								aria-describedby={`task-scheduled-date-help-${task.id}`}
+								class="ui-focus flex size-5 items-center justify-center rounded-full border border-slate-400 text-xs text-slate-600"
+								>?</button
+							>{/if}
+					</div>
+					<input
+						id={`task-scheduled-date-${task.id}`}
 						type="date"
 						bind:value={value.scheduledDate}
+						aria-describedby={!value.scheduledDate
+							? `task-scheduled-date-help-${task.id}`
+							: undefined}
 						oninput={() => {
 							if (!value.scheduledDate) value.scheduledTime = '';
 							schedule();
 						}}
 						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
-					/></label
-				>
-				<label class="grid gap-1 text-sm"
-					>Heure planifiée<input
+					/>
+					{#if !value.scheduledDate}<span
+							id={`task-scheduled-date-help-${task.id}`}
+							role="tooltip"
+							class="pointer-events-none absolute top-full left-0 z-20 mt-2 w-60 rounded-lg bg-slate-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+							>{value.recurrenceFrequency
+								? 'Choisis la date de la première occurrence. Elle est obligatoire pour une Task récurrente.'
+								: 'Une date planifiée indique quand tu comptes agir et permet d’ajouter une heure.'}</span
+						>{/if}
+				</div>
+				<div class="group relative grid gap-1 text-sm">
+					<div class="flex items-center gap-2">
+						<label for={`task-scheduled-time-${task.id}`}>Heure planifiée</label>
+						{#if !value.scheduledDate}<button
+								type="button"
+								aria-label="Pourquoi l’heure planifiée est-elle indisponible ?"
+								aria-describedby={`task-scheduled-time-help-${task.id}`}
+								class="ui-focus flex size-5 items-center justify-center rounded-full border border-slate-400 text-xs text-slate-600"
+								>?</button
+							>{/if}
+					</div>
+					<input
+						id={`task-scheduled-time-${task.id}`}
 						type="time"
 						bind:value={value.scheduledTime}
 						disabled={!value.scheduledDate}
+						aria-describedby={!value.scheduledDate
+							? `task-scheduled-time-help-${task.id}`
+							: undefined}
 						oninput={schedule}
-						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
-					/></label
-				>
+						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3 disabled:cursor-not-allowed disabled:opacity-60"
+					/>
+					{#if !value.scheduledDate}<span
+							id={`task-scheduled-time-help-${task.id}`}
+							role="tooltip"
+							class="pointer-events-none absolute top-full left-0 z-20 mt-2 w-60 rounded-lg bg-slate-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+							>Choisis d’abord une date planifiée pour activer l’heure. L’heure reste facultative.</span
+						>{/if}
+				</div>
 				<div class="grid gap-3 rounded-xl border border-slate-200 p-3 sm:col-span-2">
 					<div class="grid gap-1 text-sm">
 						<span>Récurrence</span>
@@ -392,21 +434,44 @@
 								class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
 							/>
 						</label>
+						<p class="text-xs text-slate-500">
+							{value.recurrenceFrequency === 'daily'
+								? '1 = tous les jours ; 2 = un jour sur deux.'
+								: value.recurrenceFrequency === 'weekly'
+									? '1 = chaque semaine ; 2 = une semaine sur deux, les jours choisis.'
+									: '1 = chaque mois ; 2 = un mois sur deux, au jour choisi.'}
+						</p>
 						{#if value.recurrenceFrequency === 'weekly'}
-							<fieldset class="flex flex-wrap gap-3 text-sm">
-								<legend>Jours</legend>
-								{#each weekdays as weekday (weekday.day)}<label class="flex items-center gap-1"
-										><input
-											type="checkbox"
-											checked={value.recurrenceWeekdays.includes(weekday.day)}
-											onchange={(event) => {
-												value.recurrenceWeekdays = event.currentTarget.checked
-													? [...value.recurrenceWeekdays, weekday.day].sort()
-													: value.recurrenceWeekdays.filter((day) => day !== weekday.day);
-												schedule();
-											}}
-										/>{weekday.label}</label
-									>{/each}
+							<fieldset class="space-y-2 text-sm">
+								<legend>Jours de la semaine</legend>
+								<div class="flex flex-wrap gap-2">
+									{#each weekdays as weekday (weekday.day)}<label class="cursor-pointer">
+											<input
+												type="checkbox"
+												class="peer sr-only"
+												aria-label={weekday.name}
+												checked={value.recurrenceWeekdays.includes(weekday.day)}
+												onchange={(event) => {
+													if (
+														!event.currentTarget.checked &&
+														value.recurrenceWeekdays.length === 1
+													) {
+														event.currentTarget.checked = true;
+														return;
+													}
+													value.recurrenceWeekdays = event.currentTarget.checked
+														? [...value.recurrenceWeekdays, weekday.day].sort()
+														: value.recurrenceWeekdays.filter((day) => day !== weekday.day);
+													schedule();
+												}}
+											/>
+											<span
+												class="flex min-h-10 min-w-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-slate-700 transition-colors peer-checked:border-slate-900 peer-checked:bg-slate-900 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-slate-900 hover:border-slate-500"
+												>{weekday.label}</span
+											>
+										</label>{/each}
+								</div>
+								<p class="text-xs text-slate-500">Choisis au moins un jour.</p>
 							</fieldset>
 						{:else if value.recurrenceFrequency === 'monthly'}
 							<label class="grid gap-1 text-sm"
