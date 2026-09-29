@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make the Task title field as wide as its description in the edit dialog.
 - Align the Review correction sections and replace native dropdowns with clear choices and searchable parent selection.
 - Edit Jev classifications from a centered Review dialog while keeping type and parent corrections available.
 - Edit Checkpoints in a centered dialog with autosave and retry, matching the Task editor.

@@ -212,13 +212,13 @@
 				>
 			</div>
 			<div class="grid gap-4 overflow-y-auto p-4 sm:grid-cols-2 sm:p-6">
-				<label class="grid gap-1 text-sm"
+				<label class="grid gap-1 text-sm sm:col-span-2"
 					>Titre<input
 						bind:this={titleInput}
 						bind:value={value.title}
 						oninput={schedule}
 						maxlength="500"
-						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
+						class="ui-focus min-h-11 w-full rounded-lg border border-slate-300 px-3"
 					/></label
 				>
 				<div class="space-y-2 sm:col-span-2">
