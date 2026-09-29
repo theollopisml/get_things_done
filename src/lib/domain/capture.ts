@@ -1,4 +1,4 @@
-export type CaptureKind = 'entry' | 'task' | 'project' | 'vision';
+export type CaptureKind = 'entry' | 'task' | 'project';
 export type ClassifiedKind = Exclude<CaptureKind, 'entry'>;
 
 export function hasContent(value: string): boolean {
@@ -20,9 +20,9 @@ export function splitCapture(value: string): { title: string; description: strin
 }
 
 export function isCaptureKind(value: unknown): value is CaptureKind {
-	return value === 'entry' || value === 'task' || value === 'project' || value === 'vision';
+	return value === 'entry' || value === 'task' || value === 'project';
 }
 
 export function isClassifiedKind(value: unknown): value is ClassifiedKind {
-	return value === 'task' || value === 'project' || value === 'vision';
+	return value === 'task' || value === 'project';
 }

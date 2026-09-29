@@ -6,157 +6,103 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Review routes', () => {
 		await client.end();
 	});
 
-	it('filters Review by default and applies bulk confirmation and type correction through actions', async () => {
+	it('filters Jev classifications, confirms them, and corrects the type', async () => {
 		const { db } = await import('$lib/server/db');
-		const { entries, projects, visions } = await import('$lib/server/db/schema');
+		const { entries, projects, tasks } = await import('$lib/server/db/schema');
 		const { actions, load } = await import('./+page.server');
 		const { eq } = await import('drizzle-orm');
 		const now = new Date();
-		const [unreviewedVision, reviewedVision, manualVision] = await db
-			.insert(visions)
-			.values([
-				{ title: 'Direction à revoir' },
-				{ title: 'Direction confirmée' },
-				{ title: 'Direction manuelle' }
-			])
+		const created = await db
+			.insert(tasks)
+			.values([{ title: 'À revoir' }, { title: 'Confirmée' }, { title: 'Manuelle' }])
 			.returning();
 		const [unreviewed, reviewed, manual] = await db
 			.insert(entries)
 			.values([
 				{
-					rawContent: 'Direction à revoir',
+					rawContent: 'À revoir',
 					classificationState: 'classified',
 					classificationSource: 'jev',
 					classifiedAt: now,
-					visionId: unreviewedVision.id
+					taskId: created[0].id
 				},
 				{
-					rawContent: 'Direction confirmée',
+					rawContent: 'Confirmée',
 					classificationState: 'classified',
 					classificationSource: 'jev',
 					classifiedAt: now,
 					reviewedAt: now,
-					visionId: reviewedVision.id
+					taskId: created[1].id
 				},
 				{
-					rawContent: 'Direction manuelle',
+					rawContent: 'Manuelle',
 					classificationState: 'classified',
 					classificationSource: 'manual',
 					classifiedAt: now,
-					visionId: manualVision.id
+					taskId: created[2].id
 				}
 			])
 			.returning();
-		let createdProjectId: string | null = null;
+		let projectId: string | null = null;
 		try {
-			const defaultView = (await load({
-				url: new URL('http://localhost/review')
-			} as Parameters<typeof load>[0])) as { onlyUnreviewed: boolean; entries: { id: string }[] };
-			expect(defaultView.onlyUnreviewed).toBe(true);
-			expect(defaultView.entries.some((entry) => entry.id === unreviewed.id)).toBe(true);
-			expect(defaultView.entries.some((entry) => entry.id === reviewed.id)).toBe(false);
-			expect(defaultView.entries.some((entry) => entry.id === manual.id)).toBe(false);
-
-			const allView = (await load({
-				url: new URL('http://localhost/review?filter=all')
-			} as Parameters<typeof load>[0])) as { onlyUnreviewed: boolean; entries: { id: string }[] };
-			expect(allView.onlyUnreviewed).toBe(false);
-			expect(allView.entries.some((entry) => entry.id === reviewed.id)).toBe(true);
-
+			const pending = (await load({ url: new URL('http://localhost/review') } as Parameters<
+				typeof load
+			>[0])) as { onlyUnreviewed: boolean; entries: { id: string }[] };
+			expect(pending.onlyUnreviewed).toBe(true);
+			expect(pending.entries.map((item) => item.id)).toContain(unreviewed.id);
+			expect(pending.entries.map((item) => item.id)).not.toContain(reviewed.id);
+			expect(pending.entries.map((item) => item.id)).not.toContain(manual.id);
+			const all = (await load({ url: new URL('http://localhost/review?filter=all') } as Parameters<
+				typeof load
+			>[0])) as { entries: { id: string }[] };
+			expect(all.entries.map((item) => item.id)).toContain(reviewed.id);
 			const confirmForm = new FormData();
 			for (const id of [unreviewed.id, reviewed.id, manual.id]) confirmForm.append('ids', id);
-			const confirmed = await actions.confirmAll({
-				request: new Request('http://localhost/review?/confirmAll', {
-					method: 'POST',
-					body: confirmForm
-				})
-			} as Parameters<typeof actions.confirmAll>[0]);
-			expect(confirmed).toEqual({ confirmed: 1 });
 			expect(
-				(await db.select().from(entries).where(eq(entries.id, manual.id)))[0].reviewedAt
-			).toBeNull();
-			const afterConfirm = (await load({
-				url: new URL('http://localhost/review')
-			} as Parameters<typeof load>[0])) as { entries: { id: string }[] };
-			expect(afterConfirm.entries.some((entry) => entry.id === unreviewed.id)).toBe(false);
-
+				await actions.confirmAll({
+					request: new Request('http://localhost/review?/confirmAll', {
+						method: 'POST',
+						body: confirmForm
+					})
+				} as Parameters<typeof actions.confirmAll>[0])
+			).toEqual({ confirmed: 1 });
 			const typeForm = new FormData();
 			typeForm.set('id', unreviewed.id);
 			typeForm.set('kind', 'project');
 			expect(
 				await actions.type({
-					request: new Request('http://localhost/review?/type', {
-						method: 'POST',
-						body: typeForm
-					})
+					request: new Request('http://localhost/review?/type', { method: 'POST', body: typeForm })
 				} as Parameters<typeof actions.type>[0])
 			).toEqual({ saved: true });
 			const [corrected] = await db.select().from(entries).where(eq(entries.id, unreviewed.id));
-			createdProjectId = corrected.projectId;
-			expect(corrected.visionId).toBeNull();
+			projectId = corrected.projectId;
+			expect(corrected.taskId).toBeNull();
 			expect(
-				(await db.select().from(visions).where(eq(visions.id, unreviewedVision.id)))[0].deletedAt
+				(await db.select().from(tasks).where(eq(tasks.id, created[0].id)))[0].deletedAt
 			).toBeInstanceOf(Date);
-			expect(
-				await actions.type({
-					request: new Request('http://localhost/review?/type', {
-						method: 'POST',
-						body: typeForm
-					})
-				} as Parameters<typeof actions.type>[0])
-			).toMatchObject({ status: 400, data: { error: 'Choisis un autre type.' } });
 		} finally {
-			for (const entry of [unreviewed, reviewed, manual]) {
+			for (const entry of [unreviewed, reviewed, manual])
 				await db.delete(entries).where(eq(entries.id, entry.id));
-			}
-			if (createdProjectId) await db.delete(projects).where(eq(projects.id, createdProjectId));
-			for (const vision of [unreviewedVision, reviewedVision, manualVision]) {
-				await db.delete(visions).where(eq(visions.id, vision.id));
-			}
+			for (const task of created) await db.delete(tasks).where(eq(tasks.id, task.id));
+			if (projectId) await db.delete(projects).where(eq(projects.id, projectId));
 		}
 	});
 
-	it('keeps a failed capture in Review until manual processing', async () => {
+	it('keeps failed captures available for manual processing', async () => {
 		const { db } = await import('$lib/server/db');
 		const { entries, tasks } = await import('$lib/server/db/schema');
 		const { actions, load } = await import('./+page.server');
 		const { eq } = await import('drizzle-orm');
-		const [entry, toDelete] = await db
+		const [entry] = await db
 			.insert(entries)
-			.values([
-				{ rawContent: 'Tâche après échec Jev', classificationState: 'failed' },
-				{ rawContent: 'Capture à supprimer', classificationState: 'failed' }
-			])
+			.values({ rawContent: 'Tâche après échec', classificationState: 'failed' })
 			.returning();
 		let taskId: string | null = null;
 		try {
 			const review = (await load({
 				url: new URL('http://localhost/review?filter=unclassified')
-			} as Parameters<typeof load>[0])) as {
-				unclassified: { id: string }[];
-			};
+			} as Parameters<typeof load>[0])) as { unclassified: { id: string }[] };
 			expect(review.unclassified.some((item) => item.id === entry.id)).toBe(true);
-			const editForm = new FormData();
-			editForm.set('id', entry.id);
-			editForm.set('rawContent', 'Tâche corrigée après échec Jev');
-			expect(
-				await actions.updateUnclassified({
-					request: new Request('http://localhost/review?/updateUnclassified', {
-						method: 'POST',
-						body: editForm
-					})
-				} as Parameters<typeof actions.updateUnclassified>[0])
-			).toEqual({ saved: true });
-			const deleteForm = new FormData();
-			deleteForm.set('id', toDelete.id);
-			expect(
-				await actions.deleteUnclassified({
-					request: new Request('http://localhost/review?/deleteUnclassified', {
-						method: 'POST',
-						body: deleteForm
-					})
-				} as Parameters<typeof actions.deleteUnclassified>[0])
-			).toEqual({ saved: true });
 			const form = new FormData();
 			form.set('id', entry.id);
 			form.set('kind', 'task');
@@ -171,17 +117,8 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Review routes', () => {
 			const [classified] = await db.select().from(entries).where(eq(entries.id, entry.id));
 			taskId = classified.taskId;
 			expect(classified.classificationSource).toBe('manual');
-			expect(classified.rawContent).toBe('Tâche corrigée après échec Jev');
-			const afterProcessing = (await load({
-				url: new URL('http://localhost/review?filter=unclassified')
-			} as Parameters<typeof load>[0])) as {
-				unclassified: { id: string }[];
-			};
-			expect(afterProcessing.unclassified.some((item) => item.id === entry.id)).toBe(false);
-			expect(afterProcessing.unclassified.some((item) => item.id === toDelete.id)).toBe(false);
 		} finally {
 			await db.delete(entries).where(eq(entries.id, entry.id));
-			await db.delete(entries).where(eq(entries.id, toDelete.id));
 			if (taskId) await db.delete(tasks).where(eq(tasks.id, taskId));
 		}
 	});

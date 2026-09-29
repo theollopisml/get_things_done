@@ -1,14 +1,13 @@
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { isProjectToBuild, projectStatusChange, type ProjectStatus } from '$lib/domain/projects';
 import { db } from '$lib/server/db';
-import { checkpoints, projects, tasks, visions } from '$lib/server/db/schema';
+import { checkpoints, projects, tasks } from '$lib/server/db/schema';
 
 export async function listProjects() {
 	const [rows, taskCounts, checkpointCounts] = await Promise.all([
 		db
-			.select({ project: projects, visionTitle: visions.title })
+			.select()
 			.from(projects)
-			.leftJoin(visions, eq(projects.visionId, visions.id))
 			.where(isNull(projects.deletedAt))
 			.orderBy(desc(projects.updatedAt), asc(projects.id)),
 		db
@@ -32,12 +31,11 @@ export async function listProjects() {
 	]);
 	const taskMap = new Map(taskCounts.map((count) => [count.projectId, count]));
 	const checkpointMap = new Map(checkpointCounts.map((count) => [count.projectId, count]));
-	return rows.map(({ project, visionTitle }) => {
+	return rows.map((project) => {
 		const taskCount = taskMap.get(project.id)?.count ?? 0;
 		const checkpointCount = checkpointMap.get(project.id)?.count ?? 0;
 		return {
 			...project,
-			visionTitle,
 			taskCount,
 			tasksDone: taskMap.get(project.id)?.done ?? 0,
 			checkpointCount,
@@ -49,9 +47,8 @@ export async function listProjects() {
 
 export async function getProjectDetail(id: string) {
 	const [project] = await db
-		.select({ project: projects, visionTitle: visions.title })
+		.select()
 		.from(projects)
-		.leftJoin(visions, eq(projects.visionId, visions.id))
 		.where(and(eq(projects.id, id), isNull(projects.deletedAt)));
 	if (!project) return null;
 	const [projectTasks, projectCheckpoints] = await Promise.all([
@@ -69,8 +66,7 @@ export async function getProjectDetail(id: string) {
 	const taskCount = projectTasks.length;
 	const checkpointCount = projectCheckpoints.length;
 	return {
-		...project.project,
-		visionTitle: project.visionTitle,
+		...project,
 		taskCount,
 		tasksDone: projectTasks.filter((task) => task.status === 'done').length,
 		openTaskCount: projectTasks.filter(
@@ -78,7 +74,7 @@ export async function getProjectDetail(id: string) {
 		).length,
 		checkpointCount,
 		checkpointsDone: projectCheckpoints.filter((checkpoint) => checkpoint.status === 'done').length,
-		toBuild: isProjectToBuild({ status: project.project.status, taskCount, checkpointCount }),
+		toBuild: isProjectToBuild({ status: project.status, taskCount, checkpointCount }),
 		checkpoints: projectCheckpoints,
 		tasks: projectTasks
 	};

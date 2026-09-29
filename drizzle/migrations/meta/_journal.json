@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1790438460699,
-      "tag": "0000_short_deadpool",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1790440331637,
-      "tag": "0001_organic_saracen",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1790581846859,
-      "tag": "0002_far_chronomancer",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1790587310021,
-      "tag": "0003_woozy_ronan",
+      "when": 1790672992565,
+      "tag": "0000_absurd_jean_grey",
       "breakpoints": true
     }
   ]

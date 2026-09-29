@@ -259,12 +259,6 @@
 							class="ui-button ui-button-quiet ui-focus"
 							onclick={() => classify(entry, 'project')}>Project</button
 						>
-						<button
-							type="button"
-							disabled={entry.busy}
-							class="ui-button ui-button-quiet ui-focus"
-							onclick={() => classify(entry, 'vision')}>Vision</button
-						>
 						{#if processing}<button
 								type="button"
 								class="ui-button ui-button-quiet ui-focus"

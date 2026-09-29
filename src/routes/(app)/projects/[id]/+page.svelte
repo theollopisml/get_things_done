@@ -288,9 +288,6 @@
 				>{next === 'active' && data.project.status === 'done' ? 'Rouvrir' : labels[next]}</button
 			>{/each}
 	</div>
-	{#if data.project.visionTitle}<p class="text-sm text-slate-600">
-			Vision : {data.project.visionTitle}
-		</p>{/if}
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
 	<section
 		class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"

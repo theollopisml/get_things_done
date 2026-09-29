@@ -29,9 +29,9 @@ export class InvalidCapture extends Error {}
 const content = z.string().refine(hasContent);
 const captureInput = z.object({
 	rawContent: content,
-	kind: z.enum(['entry', 'task', 'project', 'vision'])
+	kind: z.enum(['entry', 'task', 'project'])
 });
-const classifyInput = z.enum(['task', 'project', 'vision']);
+const classifyInput = z.enum(['task', 'project']);
 
 export function parseEntryId(value: unknown) {
 	const result = z.uuid().safeParse(value);
@@ -56,14 +56,9 @@ type JevDependencies = {
 
 const activeClassifications = new Set<string>();
 
-function linkedKind(entry: {
-	taskId: string | null;
-	projectId: string | null;
-	visionId: string | null;
-}): ClassifiedKind {
+function linkedKind(entry: { taskId: string | null; projectId: string | null }): ClassifiedKind {
 	if (entry.taskId) return 'task';
-	if (entry.projectId) return 'project';
-	return 'vision';
+	return 'project';
 }
 
 export async function submitCollectorCapture(

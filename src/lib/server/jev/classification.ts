@@ -7,7 +7,6 @@ const RELATION_THRESHOLD = 0.9;
 
 export type RelationCandidate = { id: string; title: string };
 type ChoiceClient = { choose(request: ChoiceRequest): Promise<ChoiceResult> };
-type ParentKind = 'project' | 'vision';
 
 export type JevClassification = {
 	kind: ClassifiedKind;
@@ -20,14 +19,13 @@ export type JevClassification = {
 
 const TYPE_CRITERIA = {
 	task: 'Une action exécutable et finie, même sans date ni projet.',
-	project: 'Un résultat concret et terminable, qui peut demander plusieurs actions.',
-	vision: 'Une direction durable ou un état souhaité, sans fin précise.'
+	project: 'Un résultat ou chantier durable, qui peut demander plusieurs actions.'
 };
 
 export async function decideCapture(
 	rawContent: string,
 	client: ChoiceClient,
-	loadCandidates: (kind: ParentKind) => Promise<RelationCandidate[]>
+	loadCandidates: () => Promise<RelationCandidate[]>
 ): Promise<JevClassification> {
 	const typeDecision = await client.choose({
 		state: rawContent,
@@ -43,9 +41,9 @@ export async function decideCapture(
 		model: typeDecision.model,
 		cost: typeDecision.cost
 	};
-	if (kind === 'vision') return result;
+	if (kind === 'project') return result;
 
-	const candidates = await loadCandidates(kind === 'task' ? 'project' : 'vision');
+	const candidates = await loadCandidates();
 	if (
 		!candidates.length ||
 		candidates.length > MAX_RELATION_CANDIDATES ||
@@ -62,10 +60,7 @@ export async function decideCapture(
 	try {
 		relationDecision = await client.choose({
 			state: rawContent,
-			instructions:
-				kind === 'task'
-					? 'Cette Task appartient-elle clairement à un des Projects existants ?'
-					: 'Ce Project appartient-il clairement à une des Visions existantes ?',
+			instructions: 'Cette Task appartient-elle clairement à un des Projects existants ?',
 			criteria
 		});
 	} catch (error) {

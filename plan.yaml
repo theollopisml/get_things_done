@@ -148,18 +148,18 @@ slices:
 
   - id: "08"
     name: simplify-classification
-    done: false
+    done: true
     tasks:
       - description: "Aligner le PRD et l'architecture sur Task et Project"
         done: true
       - description: "Retirer la troisième catégorie du Collector, de Jev, de la Revue et de la navigation"
-        done: false
+        done: true
       - description: "Supprimer les écrans et le rattachement supérieur des Projects"
-        done: false
+        done: true
       - description: "Régénérer les migrations initiales et réinitialiser la base de développement"
-        done: false
+        done: true
       - description: "Adapter les tests et vérifier le parcours complet Task/Project"
-        done: false
+        done: true
 
   - id: "09"
     name: home

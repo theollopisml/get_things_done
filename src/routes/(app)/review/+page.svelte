@@ -24,10 +24,10 @@
 	let parentSearch = $state('');
 
 	const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
-	const kindLabels = { task: 'Task', project: 'Project', vision: 'Vision' } as const;
+	const kindLabels = { task: 'Task', project: 'Project' } as const;
 
 	function openEditor(entry: PageData['entries'][number], trigger: HTMLButtonElement) {
-		const options = entry.kind === 'task' ? data.parents.projects : data.parents.visions;
+		const options = entry.kind === 'task' ? data.parents.projects : [];
 		editTrigger = trigger;
 		editing = entry.id;
 		selectedKind = '';
@@ -173,10 +173,6 @@
 								<span>
 									· {entry.parentTitle ? `Projet : ${entry.parentTitle}` : 'Sans projet'}</span
 								>
-							{:else if entry.kind === 'project'}
-								<span>
-									· {entry.parentTitle ? `Vision : ${entry.parentTitle}` : 'Sans vision'}</span
-								>
 							{/if}
 							{#if entry.objectDeleted}<span class="ml-2 text-red-700">Objet supprimé</span>{/if}
 						</div>
@@ -259,7 +255,7 @@
 				</div>
 				<div class="space-y-5 overflow-y-auto p-4 sm:p-6">
 					<p class="text-sm break-words whitespace-pre-wrap text-slate-700">{entry.rawContent}</p>
-					<div class="grid items-stretch gap-3 {entry.kind === 'vision' ? '' : 'sm:grid-cols-2'}">
+					<div class="grid items-stretch gap-3 {entry.kind === 'task' ? 'sm:grid-cols-2' : ''}">
 						<section class="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
 							<div class="sm:min-h-24">
 								<h2 class="flex items-center gap-2 text-sm font-semibold text-slate-950">
@@ -321,9 +317,8 @@
 								>
 							</form>
 						</section>
-						{#if entry.kind === 'task' || entry.kind === 'project'}
-							{@const options =
-								entry.kind === 'task' ? data.parents.projects : data.parents.visions}
+						{#if entry.kind === 'task'}
+							{@const options = data.parents.projects}
 							{@const filteredOptions = options.filter((option) =>
 								option.title
 									.toLocaleLowerCase('fr')
@@ -342,8 +337,7 @@
 										Actuel : <span
 											class="inline-block max-w-40 truncate align-bottom font-medium text-slate-800"
 											title={entry.parentTitle ?? undefined}>{entry.parentTitle ?? 'Aucun'}</span
-										>.
-										{entry.kind === 'task' ? 'Choisis un Project.' : 'Choisis une Vision.'}
+										>. Choisis un Project.
 									</p>
 								</div>
 								<form
@@ -357,8 +351,7 @@
 									<div>
 										<label
 											for="review-parent-search"
-											class="mb-2 block text-xs font-medium text-slate-700"
-											>{entry.kind === 'task' ? 'Projet souhaité' : 'Vision souhaitée'}</label
+											class="mb-2 block text-xs font-medium text-slate-700">Projet souhaité</label
 										>
 										<input
 											id="review-parent-search"
@@ -370,9 +363,8 @@
 										/>
 										{#if options.length === 0}
 											<p class="mt-2 text-xs leading-5 text-slate-600">
-												{entry.kind === 'task'
-													? 'Aucun Project disponible : seuls les Projects planifiés ou en cours peuvent accueillir une Task.'
-													: 'Aucune Vision disponible : seules les Visions actives peuvent accueillir un Project.'}
+												Aucun Project disponible : seuls les Projects planifiés ou en cours peuvent
+												accueillir une Task.
 											</p>
 										{/if}
 									</div>

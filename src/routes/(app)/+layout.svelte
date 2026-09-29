@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import Binoculars from '@lucide/svelte/icons/binoculars';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import House from '@lucide/svelte/icons/house';
@@ -13,8 +12,7 @@
 		{ href: '/', label: 'Accueil', icon: House },
 		{ href: '/review', label: 'Revue', icon: ClipboardCheck },
 		{ href: '/tasks', label: 'Tasks', icon: ListTodo },
-		{ href: '/projects', label: 'Projects', icon: FolderKanban },
-		{ href: '/visions', label: 'Visions', icon: Binoculars }
+		{ href: '/projects', label: 'Projects', icon: FolderKanban }
 	] as const;
 
 	let { children } = $props();

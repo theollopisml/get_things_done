@@ -19,7 +19,6 @@
 	function kindLabel(kind: unknown) {
 		if (kind === 'task') return 'Task';
 		if (kind === 'project') return 'Project';
-		if (kind === 'vision') return 'Vision';
 		return null;
 	}
 
@@ -29,8 +28,6 @@
 		const parent = typeof relationTitle === 'string' && relationTitle.trim() ? relationTitle : null;
 		if (kind === 'task')
 			return `Classée en ${label} · ${parent ? `Projet : ${parent}` : 'Sans projet'}`;
-		if (kind === 'project')
-			return `Classée en ${label} · ${parent ? `Vision : ${parent}` : 'Sans vision'}`;
 		return `Classée en ${label}`;
 	}
 

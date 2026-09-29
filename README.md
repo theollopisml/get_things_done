@@ -47,7 +47,7 @@ pnpm db:reset:dev
 ```
 
 Cette commande efface définitivement les données de `get_things_done`, y compris
-les sessions. Elle refuse une `DATABASE_URL` différente de la base locale Docker
+les Tasks, Projects, comptes et sessions. Elle refuse une `DATABASE_URL` différente de la base locale Docker
 attendue ; il faut ensuite se reconnecter à l'application. Les autres bases et
 volumes Docker ne sont pas supprimés.
 

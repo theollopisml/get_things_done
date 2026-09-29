@@ -84,9 +84,6 @@
 											>À construire</span
 										>{/if}
 								</div>
-								{#if project.visionTitle}<p class="mt-2 text-sm text-slate-600">
-										Vision : {project.visionTitle}
-									</p>{/if}
 								<p class="mt-3 text-sm text-slate-600">
 									Tasks : {project.tasksDone} / {project.taskCount} terminées
 								</p>

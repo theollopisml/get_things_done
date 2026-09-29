@@ -12,29 +12,10 @@ import {
 	jsonb
 } from 'drizzle-orm/pg-core';
 
-export const visions = pgTable(
-	'visions',
-	{
-		id: uuid('id').defaultRandom().primaryKey(),
-		title: text('title').notNull(),
-		description: text('description'),
-		status: text('status', { enum: ['active', 'paused', 'archived'] })
-			.default('active')
-			.notNull(),
-		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-		deletedAt: timestamp('deleted_at', { withTimezone: true })
-	},
-	(table) => [
-		check('visions_status_check', sql`${table.status} IN ('active', 'paused', 'archived')`)
-	]
-);
-
 export const projects = pgTable(
 	'projects',
 	{
 		id: uuid('id').defaultRandom().primaryKey(),
-		visionId: uuid('vision_id').references(() => visions.id),
 		title: text('title').notNull(),
 		description: text('description'),
 		status: text('status', { enum: ['planned', 'active', 'paused', 'done', 'cancelled'] })
@@ -135,7 +116,6 @@ export const entries = pgTable(
 		classificationSource: text('classification_source', { enum: ['jev', 'manual'] }),
 		taskId: uuid('task_id').references(() => tasks.id),
 		projectId: uuid('project_id').references(() => projects.id),
-		visionId: uuid('vision_id').references(() => visions.id),
 		classifiedAt: timestamp('classified_at', { withTimezone: true }),
 		reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
 		jevModel: text('jev_model'),
@@ -156,7 +136,7 @@ export const entries = pgTable(
 		),
 		check(
 			'entries_classification_consistency_check',
-			sql`(${table.classificationState} = 'classified' AND ${table.classificationSource} IS NOT NULL AND ${table.classifiedAt} IS NOT NULL AND num_nonnulls(${table.taskId}, ${table.projectId}, ${table.visionId}) = 1) OR (${table.classificationState} IN ('pending', 'failed') AND ${table.classificationSource} IS NULL AND ${table.classifiedAt} IS NULL AND num_nonnulls(${table.taskId}, ${table.projectId}, ${table.visionId}) = 0)`
+			sql`(${table.classificationState} = 'classified' AND ${table.classificationSource} IS NOT NULL AND ${table.classifiedAt} IS NOT NULL AND num_nonnulls(${table.taskId}, ${table.projectId}) = 1) OR (${table.classificationState} IN ('pending', 'failed') AND ${table.classificationSource} IS NULL AND ${table.classifiedAt} IS NULL AND num_nonnulls(${table.taskId}, ${table.projectId}) = 0)`
 		),
 		check(
 			'entries_reviewed_at_check',

@@ -11,17 +11,16 @@ function decision(choice: string, probabilities: Record<string, number>): Choice
 }
 
 const project = { id: 'project-1', title: 'Refaire mon portfolio' };
-const vision = { id: 'vision-1', title: 'Développer ma créativité' };
 
 describe('Jev capture decisions', () => {
 	it('applies a valid type even when its probability is low', async () => {
 		const client = {
-			choose: vi.fn(async () => decision('vision', { task: 0.4, project: 0.35, vision: 0.25 }))
+			choose: vi.fn(async () => decision('project', { task: 0.4, project: 0.6 }))
 		};
 		const loadCandidates = vi.fn(async () => []);
 		expect(await decideCapture('Dessiner plus souvent', client, loadCandidates)).toMatchObject({
-			kind: 'vision',
-			typeProbability: 0.25,
+			kind: 'project',
+			typeProbability: 0.6,
 			relationId: null
 		});
 		expect(client.choose).toHaveBeenCalledOnce();
@@ -32,12 +31,12 @@ describe('Jev capture decisions', () => {
 		const client = {
 			choose: vi
 				.fn()
-				.mockResolvedValueOnce(decision('task', { task: 0.7, project: 0.2, vision: 0.1 }))
+				.mockResolvedValueOnce(decision('task', { task: 0.7, project: 0.3 }))
 				.mockResolvedValueOnce(decision(project.id, { none: 0.04, [project.id]: 0.96 }))
 		};
 		const loadCandidates = vi.fn(async () => [project]);
 		const result = await decideCapture('Corriger le CSS du portfolio', client, loadCandidates);
-		expect(loadCandidates).toHaveBeenCalledWith('project');
+		expect(loadCandidates).toHaveBeenCalledOnce();
 		expect(client.choose.mock.calls[1][0]).toMatchObject({
 			state: 'Corriger le CSS du portfolio',
 			criteria: { none: expect.any(String), [project.id]: project.title }
@@ -51,18 +50,15 @@ describe('Jev capture decisions', () => {
 		});
 	});
 
-	it('offers only Visions to a Project and leaves uncertain relations empty', async () => {
+	it('does not seek a parent for a Project', async () => {
 		const client = {
-			choose: vi
-				.fn()
-				.mockResolvedValueOnce(decision('project', { task: 0.1, project: 0.8, vision: 0.1 }))
-				.mockResolvedValueOnce(decision(vision.id, { none: 0.11, [vision.id]: 0.89 }))
+			choose: vi.fn(async () => decision('project', { task: 0.2, project: 0.8 }))
 		};
-		const loadCandidates = vi.fn(async () => [vision]);
+		const loadCandidates = vi.fn(async () => [project]);
 		const result = await decideCapture('Publier mes dessins', client, loadCandidates);
-		expect(loadCandidates).toHaveBeenCalledWith('vision');
+		expect(loadCandidates).not.toHaveBeenCalled();
 		expect(result.relationId).toBeNull();
-		expect(result.relationProbability).toBe(0.89);
+		expect(result.relationProbability).toBeNull();
 	});
 
 	it('skips relation choice when the candidate list is empty or exceeds the limit', async () => {
@@ -74,7 +70,7 @@ describe('Jev capture decisions', () => {
 			}))
 		]) {
 			const client = {
-				choose: vi.fn(async () => decision('task', { task: 0.9, project: 0.08, vision: 0.02 }))
+				choose: vi.fn(async () => decision('task', { task: 0.9, project: 0.1 }))
 			};
 			const result = await decideCapture('Faire une tâche', client, async () => candidates);
 			expect(result.relationId).toBeNull();
@@ -86,7 +82,7 @@ describe('Jev capture decisions', () => {
 		const client = {
 			choose: vi
 				.fn()
-				.mockResolvedValueOnce(decision('task', { task: 1, project: 0, vision: 0 }))
+				.mockResolvedValueOnce(decision('task', { task: 1, project: 0 }))
 				.mockResolvedValueOnce(decision('none', { none: 0.95, [project.id]: 0.05 }))
 		};
 		const result = await decideCapture('Tâche autonome', client, async () => [project]);
@@ -96,7 +92,7 @@ describe('Jev capture decisions', () => {
 
 	it('skips a relation question when candidate titles cannot be presented safely', async () => {
 		const client = {
-			choose: vi.fn(async () => decision('task', { task: 0.9, project: 0.08, vision: 0.02 }))
+			choose: vi.fn(async () => decision('task', { task: 0.9, project: 0.1 }))
 		};
 		const result = await decideCapture('Faire une tâche', client, async () => [
 			{ id: project.id, title: 'A'.repeat(MAX_CANDIDATE_TITLE_CHARACTERS + 1) }
@@ -109,7 +105,7 @@ describe('Jev capture decisions', () => {
 		const client = {
 			choose: vi
 				.fn()
-				.mockResolvedValueOnce(decision('task', { task: 0.9, project: 0.08, vision: 0.02 }))
+				.mockResolvedValueOnce(decision('task', { task: 0.9, project: 0.1 }))
 				.mockRejectedValueOnce(new JevError('invalid_response'))
 		};
 		const result = await decideCapture('Faire une tâche', client, async () => [project]);

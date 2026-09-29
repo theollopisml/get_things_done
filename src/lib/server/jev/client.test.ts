@@ -6,8 +6,7 @@ const request = {
 	instructions: 'Choisis le type de cette capture.',
 	criteria: {
 		task: 'Action finie à exécuter',
-		project: 'Résultat concret à atteindre',
-		vision: 'Direction durable'
+		project: 'Résultat concret à atteindre'
 	}
 };
 
@@ -18,7 +17,7 @@ function validResponse() {
 			decision: {
 				type: 'choice',
 				choice: 'task',
-				probabilities: { task: 0.8, project: 0.15, vision: 0.05 },
+				probabilities: { task: 0.8, project: 0.2 },
 				confidence: 0.9
 			}
 		},
@@ -52,7 +51,7 @@ describe('OpenRouter Jev client', () => {
 		expect(init?.signal).toBeInstanceOf(AbortSignal);
 		expect(result).toEqual({
 			choice: 'task',
-			probabilities: { task: 0.8, project: 0.15, vision: 0.05 },
+			probabilities: { task: 0.8, project: 0.2 },
 			confidence: 0.9,
 			model: `${JEV_MODEL}-20260917`,
 			cost: 0.00001
@@ -83,7 +82,7 @@ describe('OpenRouter Jev client', () => {
 				answers: {
 					decision: {
 						...validResponse().answers.decision,
-						probabilities: { task: 0.8, project: 0.2 }
+						probabilities: { task: 0.8 }
 					}
 				}
 			}
