@@ -61,9 +61,10 @@ export async function getProjectDetail(id: string) {
 			.where(and(eq(tasks.projectId, id), isNull(tasks.deletedAt)))
 			.orderBy(sql`${tasks.position} NULLS LAST`, asc(tasks.createdAt), asc(tasks.id)),
 		db
-			.select({ status: checkpoints.status })
+			.select()
 			.from(checkpoints)
 			.where(and(eq(checkpoints.projectId, id), isNull(checkpoints.deletedAt)))
+			.orderBy(asc(checkpoints.position), asc(checkpoints.id))
 	]);
 	const taskCount = projectTasks.length;
 	const checkpointCount = projectCheckpoints.length;
@@ -78,6 +79,7 @@ export async function getProjectDetail(id: string) {
 		checkpointCount,
 		checkpointsDone: projectCheckpoints.filter((checkpoint) => checkpoint.status === 'done').length,
 		toBuild: isProjectToBuild({ status: project.project.status, taskCount, checkpointCount }),
+		checkpoints: projectCheckpoints,
 		tasks: projectTasks
 	};
 }

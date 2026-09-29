@@ -134,7 +134,7 @@ slices:
     done: false
     tasks:
       - description: "Créer le modèle Checkpoint"
-        done: false
+        done: true
       - description: "Permettre la création uniquement depuis un Project"
         done: false
       - description: "Implémenter OPEN/DONE/CANCELLED"
