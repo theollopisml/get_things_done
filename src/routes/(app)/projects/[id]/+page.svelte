@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
 	import type { ProjectStatus } from '$lib/domain/projects';
@@ -23,6 +24,9 @@
 	let error = $state('');
 	let preview = $state(false);
 	let busy = $state(false);
+	let confirmOpen = $state(false);
+	let pendingStatus = $state<ProjectStatus | null>(null);
+	let confirmError = $state('');
 	let newTask = $state('');
 	let creatingTask = $state(false);
 	let undo = $state<{ taskId: string; projectId: string | null; position: number | null } | null>(
@@ -99,25 +103,28 @@
 
 	async function status(next: ProjectStatus) {
 		if (busy || !(await save())) return;
-		if (
-			(next === 'done' || next === 'cancelled') &&
-			data.project.openTaskCount > 0 &&
-			!window.confirm(
-				`Ce Project contient ${data.project.openTaskCount} Task(s) ouvertes. Elles garderont leur statut et seront masquées des vues d’exécution. Continuer ?`
-			)
-		)
+		if (next === 'cancelled' || (next === 'done' && data.project.openTaskCount > 0)) {
+			pendingStatus = next;
+			confirmError = '';
+			confirmOpen = true;
 			return;
-		if (
-			next === 'cancelled' &&
-			data.project.openTaskCount === 0 &&
-			!window.confirm('Annuler ce Project ?')
-		)
-			return;
+		}
+		await applyStatus(next);
+	}
+
+	async function applyStatus(next: ProjectStatus) {
 		busy = true;
 		error = '';
+		confirmError = '';
 		const response = await postAction(`${projectPath}?/status`, form({ status: next }));
-		if (response.ok) await invalidateAll();
-		else error = response.error || 'Action impossible. Réessaie.';
+		if (response.ok) {
+			confirmOpen = false;
+			pendingStatus = null;
+			await invalidateAll();
+		} else {
+			error = response.error || 'Action impossible. Réessaie.';
+			if (confirmOpen) confirmError = error;
+		}
 		busy = false;
 	}
 
@@ -394,3 +401,53 @@
 			</p>{/if}
 	</section>
 </div>
+
+<Dialog.Root bind:open={confirmOpen}>
+	<Dialog.Portal>
+		<Dialog.Overlay class="fixed inset-0 z-40 bg-slate-950/60" />
+		<Dialog.Content
+			onEscapeKeydown={(event) => {
+				if (busy) event.preventDefault();
+			}}
+			onInteractOutside={(event) => {
+				if (busy) event.preventDefault();
+			}}
+			class="fixed top-1/2 left-1/2 z-50 w-[min(calc(100vw-2rem),30rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl"
+		>
+			<Dialog.Title class="text-xl font-semibold text-slate-950">
+				{pendingStatus === 'cancelled' ? 'Annuler ce Project ?' : 'Terminer ce Project ?'}
+			</Dialog.Title>
+			<Dialog.Description class="mt-3 text-sm leading-6 text-slate-600">
+				{#if data.project.openTaskCount > 0}
+					Ce Project contient {data.project.openTaskCount} Task{data.project.openTaskCount > 1
+						? 's'
+						: ''} ouverte{data.project.openTaskCount > 1 ? 's' : ''}. Leur statut ne changera pas,
+					mais elles seront masquées des vues d’exécution tant que le Project restera
+					{pendingStatus === 'cancelled' ? 'annulé' : 'terminé'}.
+				{:else}
+					Cette action classera le Project parmi les projets annulés.
+				{/if}
+			</Dialog.Description>
+			{#if confirmError}<p role="alert" class="mt-4 text-sm text-red-700">{confirmError}</p>{/if}
+			<div class="mt-6 flex flex-wrap justify-end gap-2">
+				<button
+					type="button"
+					disabled={busy}
+					onclick={() => (confirmOpen = false)}
+					class="ui-button ui-button-quiet ui-focus">Retour</button
+				>
+				<button
+					type="button"
+					disabled={busy || !pendingStatus}
+					onclick={() => pendingStatus && applyStatus(pendingStatus)}
+					class="ui-button ui-button-primary ui-focus"
+					>{busy
+						? 'En cours…'
+						: pendingStatus === 'cancelled'
+							? 'Annuler le Project'
+							: 'Terminer le Project'}</button
+				>
+			</div>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
