@@ -115,7 +115,7 @@ slices:
     done: false
     tasks:
       - description: "Créer le modèle Project"
-        done: false
+        done: true
       - description: "Implémenter PLANNED/ACTIVE/PAUSED/DONE/CANCELLED"
         done: false
       - description: "Relier une Task à zéro ou un Project"

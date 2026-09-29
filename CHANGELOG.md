@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add validated Project creation, editing, and lifecycle operations that preserve the first activation date and leave linked Tasks unchanged.
 - Preview a Task's Markdown description from its current draft in the edit modal, with common formatting and safe links.
 - Persist one-off Task status transitions, scheduling dates, optional times, and closure metadata with validation and PostgreSQL tests.
 - Create a grouped Tasks backlog with open and history views, quick capture, simple filters, and Project exposure rules.
