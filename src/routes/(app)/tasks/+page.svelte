@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
+	import SelectMenu from '$lib/components/SelectMenu.svelte';
 	import { taskGroup, type TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
 	import TaskCard from './TaskCard.svelte';
@@ -30,6 +31,20 @@
 					items.findIndex((candidate) => candidate.projectId === task.projectId) === index
 			)
 	);
+	const filterOptions = [
+		{ value: 'all', label: 'Toutes' },
+		{ value: 'todo', label: 'À faire' },
+		{ value: 'in_progress', label: 'En cours' },
+		{ value: 'scheduled', label: 'Planifiées' },
+		{ value: 'unscheduled', label: 'Sans planification' }
+	];
+	let projectFilterOptions = $derived([
+		{ value: 'all', label: 'Tous' },
+		...projectOptions.map((project) => ({
+			value: project.projectId ?? '',
+			label: project.projectTitle ?? 'Sans projet'
+		}))
+	]);
 	let visible = $derived(
 		data.tasks.filter((task) => {
 			if (projectFilter !== 'all' && task.projectId !== projectFilter) return false;
@@ -108,7 +123,7 @@
 	}
 
 	async function move(id: string, projectId: string, position?: number, isUndo = false) {
-		if (busy) return;
+		if (busy) return false;
 		busy = true;
 		error = '';
 		const fields = form({ id, projectId });
@@ -125,6 +140,7 @@
 			await invalidateAll();
 		} else error = result.error || 'Déplacement impossible. Réessaie.';
 		busy = false;
+		return result.ok;
 	}
 
 	onMount(() => {
@@ -210,30 +226,24 @@
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
 	{#if !data.history}
 		<div class="flex flex-wrap gap-4">
-			<label class="flex items-center gap-2 text-sm text-slate-700"
-				>Filtrer
-				<select
+			<div class="flex items-center gap-2 text-sm text-slate-700">
+				<span>Filtrer</span>
+				<SelectMenu
 					bind:value={filter}
-					class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-				>
-					<option value="all">Toutes</option><option value="todo">À faire</option><option
-						value="in_progress">En cours</option
-					><option value="scheduled">Planifiées</option><option value="unscheduled"
-						>Sans planification</option
-					>
-				</select>
-			</label><label class="flex items-center gap-2 text-sm text-slate-700"
-				>Projet
-				<select
+					options={filterOptions}
+					label="Filtrer les Tasks"
+					triggerClass="w-52"
+				/>
+			</div>
+			<div class="flex items-center gap-2 text-sm text-slate-700">
+				<span>Projet</span>
+				<SelectMenu
 					bind:value={projectFilter}
-					class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-				>
-					<option value="all">Tous</option>
-					{#each projectOptions as project (project.projectId)}<option
-							value={project.projectId ?? ''}>{project.projectTitle}</option
-						>{/each}
-				</select>
-			</label>
+					options={projectFilterOptions}
+					label="Filtrer par Project"
+					triggerClass="min-w-32 max-w-56"
+				/>
+			</div>
 		</div>
 	{/if}
 	{#if !visible.length}

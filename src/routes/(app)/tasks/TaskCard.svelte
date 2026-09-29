@@ -3,6 +3,7 @@
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import SelectMenu from '$lib/components/SelectMenu.svelte';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
 	import type { PageData } from './$types';
@@ -17,8 +18,12 @@
 		task: Task;
 		onStatus: (id: string, status: TaskStatus, previous: TaskStatus) => Promise<boolean>;
 		projectOptions?: { id: string; title: string }[];
-		onMove?: (id: string, projectId: string) => Promise<void>;
+		onMove?: (id: string, projectId: string) => Promise<boolean>;
 	} = $props();
+	let moveOptions = $derived([
+		{ value: '', label: 'Aucun' },
+		...projectOptions.map((option) => ({ value: option.id, label: option.title }))
+	]);
 	let editing = $state(false);
 	let closing = $state(false);
 	let preview = $state(false);
@@ -137,17 +142,17 @@
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
-				{#if onMove}<label class="flex items-center gap-2 text-sm text-slate-600"
-						>Project<select
+				{#if onMove}<div class="flex items-center gap-2 text-sm text-slate-600">
+						<span>Project</span>
+						<SelectMenu
 							value={task.projectId ?? ''}
+							options={moveOptions}
+							label={`Project de ${task.title}`}
 							disabled={busy}
-							onchange={(event) => onMove?.(task.id, event.currentTarget.value)}
-							class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-							><option value="">Aucun</option>{#each projectOptions as option (option.id)}<option
-									value={option.id}>{option.title}</option
-								>{/each}</select
-						></label
-					>{/if}
+							onSelect={(next) => onMove?.(task.id, next)}
+							triggerClass="min-w-32 max-w-52"
+						/>
+					</div>{/if}
 				{#if task.status === 'todo' || task.status === 'in_progress'}
 					<button
 						type="button"

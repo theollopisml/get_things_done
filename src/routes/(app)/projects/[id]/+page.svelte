@@ -4,6 +4,7 @@
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import SelectMenu from '$lib/components/SelectMenu.svelte';
 	import type { ProjectStatus } from '$lib/domain/projects';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
@@ -38,6 +39,17 @@
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let inFlight: Promise<boolean> | null = null;
 	let projectPath = $derived(`/projects/${data.project.id}`);
+	let moveOptions = $derived([
+		{ value: '', label: 'Aucun' },
+		...data.projectOptions.map((option) => ({ value: option.id, label: option.title }))
+	]);
+	let checkpointOptions = $derived([
+		{ value: '', label: 'Aucun' },
+		...data.project.checkpoints.map((checkpoint) => ({
+			value: checkpoint.id,
+			label: checkpoint.title
+		}))
+	]);
 	let openTasks = $derived(
 		data.taskCards.filter((task) => task.status === 'todo' || task.status === 'in_progress')
 	);
@@ -176,16 +188,8 @@
 		busy = false;
 	}
 
-	async function linkCheckpoint(
-		taskId: string,
-		checkpointId: string,
-		previousId: string | null,
-		select: HTMLSelectElement
-	) {
-		if (busy || !(await save())) {
-			select.value = previousId ?? '';
-			return;
-		}
+	async function linkCheckpoint(taskId: string, checkpointId: string) {
+		if (busy || !(await save())) return false;
 		busy = true;
 		error = '';
 		const response = await postAction(
@@ -193,11 +197,9 @@
 			form({ taskId, checkpointId })
 		);
 		if (response.ok) await invalidateAll();
-		else {
-			select.value = previousId ?? '';
-			error = response.error || 'Rattachement impossible. Réessaie.';
-		}
+		else error = response.error || 'Rattachement impossible. Réessaie.';
 		busy = false;
+		return response.ok;
 	}
 
 	async function taskStatus(id: string, next: TaskStatus) {
@@ -209,7 +211,7 @@
 	}
 
 	async function move(taskId: string, projectId: string, restorePosition?: number, isUndo = false) {
-		if (busy || !(await save())) return;
+		if (busy || !(await save())) return false;
 		busy = true;
 		error = '';
 		const fields = form({ taskId, projectId });
@@ -226,6 +228,7 @@
 			await invalidateAll();
 		} else error = response.error || 'Déplacement impossible. Réessaie.';
 		busy = false;
+		return response.ok;
 	}
 
 	async function reorder(taskId: string, direction: -1 | 1, items: typeof data.taskCards) {
@@ -486,36 +489,29 @@
 									onclick={() => reorder(task.id, 1, section.tasks)}
 									class="ui-button ui-button-quiet ui-focus"
 									aria-label={`Descendre ${task.title}`}>↓</button
-								><label class="flex items-center gap-2"
-									>Project<select
+								>
+								<div class="flex items-center gap-2">
+									<span>Project</span>
+									<SelectMenu
 										value={data.project.id}
+										options={moveOptions}
+										label={`Project de ${task.title}`}
 										disabled={busy}
-										onchange={(event) => move(task.id, event.currentTarget.value)}
-										class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-										><option value="">Aucun</option
-										>{#each data.projectOptions as option (option.id)}<option value={option.id}
-												>{option.title}</option
-											>{/each}</select
-									></label
-								>
-								<label class="flex items-center gap-2"
-									>Checkpoint<select
+										onSelect={(next) => move(task.id, next)}
+										triggerClass="min-w-32 max-w-52"
+									/>
+								</div>
+								<div class="flex items-center gap-2">
+									<span>Checkpoint</span>
+									<SelectMenu
 										value={task.checkpointId ?? ''}
+										options={checkpointOptions}
+										label={`Checkpoint de ${task.title}`}
 										disabled={busy}
-										onchange={(event) =>
-											linkCheckpoint(
-												task.id,
-												event.currentTarget.value,
-												task.checkpointId,
-												event.currentTarget
-											)}
-										class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
-										><option value="">Aucun</option
-										>{#each data.project.checkpoints as checkpoint (checkpoint.id)}<option
-												value={checkpoint.id}>{checkpoint.title}</option
-											>{/each}</select
-									></label
-								>
+										onSelect={(next) => linkCheckpoint(task.id, next)}
+										triggerClass="min-w-32 max-w-52"
+									/>
+								</div>
 							</div>
 						</div>{/each}
 				</div>{/if}
