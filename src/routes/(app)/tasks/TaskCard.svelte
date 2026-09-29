@@ -3,7 +3,9 @@
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import DatePickerInput from '$lib/components/DatePickerInput.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
+	import TimeFieldInput from '$lib/components/TimeFieldInput.svelte';
 	import { recurrenceLabel, recurrenceRuleSchema } from '$lib/domain/recurrence';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
@@ -338,68 +340,26 @@
 							class="ui-focus w-full rounded-lg border border-slate-300 p-3"></textarea>
 					{/if}
 				</div>
-				<div class="group relative grid gap-1 text-sm">
-					<div class="flex items-center gap-2">
-						<label for={`task-scheduled-date-${task.id}`}>Date planifiée</label>
-						{#if !value.scheduledDate}<button
-								type="button"
-								aria-label="Pourquoi choisir une date planifiée ?"
-								aria-describedby={`task-scheduled-date-help-${task.id}`}
-								class="ui-focus flex size-5 items-center justify-center rounded-full border border-slate-400 text-xs text-slate-600"
-								>?</button
-							>{/if}
-					</div>
-					<input
-						id={`task-scheduled-date-${task.id}`}
-						type="date"
-						bind:value={value.scheduledDate}
-						aria-describedby={!value.scheduledDate
-							? `task-scheduled-date-help-${task.id}`
-							: undefined}
-						oninput={() => {
-							if (!value.scheduledDate) value.scheduledTime = '';
-							schedule();
-						}}
-						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
-					/>
-					{#if !value.scheduledDate}<span
-							id={`task-scheduled-date-help-${task.id}`}
-							role="tooltip"
-							class="pointer-events-none absolute top-full left-0 z-20 mt-2 w-60 rounded-lg bg-slate-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-							>{value.recurrenceFrequency
-								? 'Choisis la date de la première occurrence. Elle est obligatoire pour une Task récurrente.'
-								: 'Une date planifiée indique quand tu comptes agir et permet d’ajouter une heure.'}</span
-						>{/if}
-				</div>
-				<div class="group relative grid gap-1 text-sm">
-					<div class="flex items-center gap-2">
-						<label for={`task-scheduled-time-${task.id}`}>Heure planifiée</label>
-						{#if !value.scheduledDate}<button
-								type="button"
-								aria-label="Pourquoi l’heure planifiée est-elle indisponible ?"
-								aria-describedby={`task-scheduled-time-help-${task.id}`}
-								class="ui-focus flex size-5 items-center justify-center rounded-full border border-slate-400 text-xs text-slate-600"
-								>?</button
-							>{/if}
-					</div>
-					<input
-						id={`task-scheduled-time-${task.id}`}
-						type="time"
-						bind:value={value.scheduledTime}
-						disabled={!value.scheduledDate}
-						aria-describedby={!value.scheduledDate
-							? `task-scheduled-time-help-${task.id}`
-							: undefined}
-						oninput={schedule}
-						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3 disabled:cursor-not-allowed disabled:opacity-60"
-					/>
-					{#if !value.scheduledDate}<span
-							id={`task-scheduled-time-help-${task.id}`}
-							role="tooltip"
-							class="pointer-events-none absolute top-full left-0 z-20 mt-2 w-60 rounded-lg bg-slate-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-							>Choisis d’abord une date planifiée pour activer l’heure. L’heure reste facultative.</span
-						>{/if}
-				</div>
+				<DatePickerInput
+					bind:value={value.scheduledDate}
+					id={`task-scheduled-date-${task.id}`}
+					label="Date planifiée"
+					help={value.recurrenceFrequency
+						? 'Choisis la date de la première occurrence. Elle est obligatoire pour une Task récurrente.'
+						: 'Une date planifiée indique quand tu comptes agir et permet d’ajouter une heure.'}
+					onChange={() => {
+						if (!value.scheduledDate) value.scheduledTime = '';
+						schedule();
+					}}
+				/>
+				<TimeFieldInput
+					bind:value={value.scheduledTime}
+					id={`task-scheduled-time-${task.id}`}
+					label="Heure planifiée"
+					disabled={!value.scheduledDate}
+					help="Choisis d’abord une date planifiée pour activer l’heure. L’heure reste facultative."
+					onChange={schedule}
+				/>
 				<div class="grid gap-3 rounded-xl border border-slate-200 p-3 sm:col-span-2">
 					<div class="grid gap-1 text-sm">
 						<span>Récurrence</span>
@@ -488,27 +448,23 @@
 						{/if}
 					{/if}
 				</div>
-				<label class="grid gap-1 text-sm"
-					>Échéance<input
-						type="date"
-						bind:value={value.dueDate}
-						disabled={!!value.recurrenceFrequency}
-						oninput={() => {
-							if (!value.dueDate) value.dueTime = '';
-							schedule();
-						}}
-						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
-					/></label
-				>
-				<label class="grid gap-1 text-sm"
-					>Heure d’échéance<input
-						type="time"
-						bind:value={value.dueTime}
-						disabled={!value.dueDate || !!value.recurrenceFrequency}
-						oninput={schedule}
-						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
-					/></label
-				>
+				<DatePickerInput
+					bind:value={value.dueDate}
+					id={`task-due-date-${task.id}`}
+					label="Échéance"
+					disabled={!!value.recurrenceFrequency}
+					onChange={() => {
+						if (!value.dueDate) value.dueTime = '';
+						schedule();
+					}}
+				/>
+				<TimeFieldInput
+					bind:value={value.dueTime}
+					id={`task-due-time-${task.id}`}
+					label="Heure d’échéance"
+					disabled={!value.dueDate || !!value.recurrenceFrequency}
+					onChange={schedule}
+				/>
 				<div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 sm:col-span-2">
 					<span role="status"
 						>{saving

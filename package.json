@@ -50,6 +50,7 @@
 	},
 	"dependencies": {
 		"@better-auth/drizzle-adapter": "^1.7.6",
+		"@internationalized/date": "^3.12.4",
 		"@js-temporal/polyfill": "^0.5.1",
 		"@lucide/svelte": "^1.48.0",
 		"better-auth": "^1.7.6",

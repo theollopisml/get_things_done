@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace native Task editor date and time inputs with a French calendar and segmented time fields, while preserving date, time, and autosave behavior.
 - Explain scheduled date and time dependencies in Task editing, clarify recurrence intervals, and show selected weekdays as accessible toggle pills.
 - Run PostgreSQL integration test files sequentially so shared database assertions are deterministic.
 - Hide completed or cancelled Tasks and Projects from Review and its Home attention count; simplify the classification editor to object type and Task project choices.
