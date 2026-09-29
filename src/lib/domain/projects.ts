@@ -1,6 +1,18 @@
 export const projectStatuses = ['planned', 'active', 'paused', 'done', 'cancelled'] as const;
 export type ProjectStatus = (typeof projectStatuses)[number];
 
+export function isProjectToBuild(project: {
+	status: ProjectStatus;
+	taskCount: number;
+	checkpointCount: number;
+}) {
+	return (
+		(project.status === 'planned' || project.status === 'active' || project.status === 'paused') &&
+		project.taskCount === 0 &&
+		project.checkpointCount === 0
+	);
+}
+
 const transitions: Record<ProjectStatus, readonly ProjectStatus[]> = {
 	planned: ['active', 'done', 'cancelled'],
 	active: ['paused', 'done', 'cancelled'],

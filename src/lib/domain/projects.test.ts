@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { projectStatusChange, type ProjectStatus } from './projects';
+import { isProjectToBuild, projectStatusChange, type ProjectStatus } from './projects';
 
 describe('Project status transitions', () => {
 	const now = new Date('2026-09-29T12:00:00Z');
@@ -38,5 +38,13 @@ describe('Project status transitions', () => {
 		for (const [status, next] of invalid) {
 			expect(projectStatusChange({ status, startedAt: null }, next, now)).toBeNull();
 		}
+	});
+
+	it('marks only empty open Projects as TO_BUILD', () => {
+		expect(isProjectToBuild({ status: 'planned', taskCount: 0, checkpointCount: 0 })).toBe(true);
+		expect(isProjectToBuild({ status: 'paused', taskCount: 0, checkpointCount: 0 })).toBe(true);
+		expect(isProjectToBuild({ status: 'active', taskCount: 1, checkpointCount: 0 })).toBe(false);
+		expect(isProjectToBuild({ status: 'active', taskCount: 0, checkpointCount: 1 })).toBe(false);
+		expect(isProjectToBuild({ status: 'done', taskCount: 0, checkpointCount: 0 })).toBe(false);
 	});
 });
