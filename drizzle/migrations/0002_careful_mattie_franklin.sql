@@ -1,0 +1,2 @@
+ALTER TABLE "tasks" DROP CONSTRAINT "tasks_recurrence_check";--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_recurrence_check" CHECK (("tasks"."recurrence_rule" IS NULL AND "tasks"."recurrence_anchor_date" IS NULL) OR ("tasks"."recurrence_rule" IS NOT NULL AND "tasks"."recurrence_anchor_date" IS NOT NULL AND "tasks"."scheduled_date" IS NOT NULL AND "tasks"."due_date" IS NULL AND "tasks"."due_time" IS NULL AND "tasks"."status" <> 'done'));

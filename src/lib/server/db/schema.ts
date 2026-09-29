@@ -97,7 +97,7 @@ export const tasks = pgTable(
 		check('tasks_due_time_check', sql`${table.dueTime} IS NULL OR ${table.dueDate} IS NOT NULL`),
 		check(
 			'tasks_recurrence_check',
-			sql`${table.recurrenceRule} IS NULL OR (${table.scheduledDate} IS NOT NULL AND ${table.dueDate} IS NULL AND ${table.dueTime} IS NULL)`
+			sql`(${table.recurrenceRule} IS NULL AND ${table.recurrenceAnchorDate} IS NULL) OR (${table.recurrenceRule} IS NOT NULL AND ${table.recurrenceAnchorDate} IS NOT NULL AND ${table.scheduledDate} IS NOT NULL AND ${table.dueDate} IS NULL AND ${table.dueTime} IS NULL AND ${table.status} <> 'done')`
 		)
 	]
 );

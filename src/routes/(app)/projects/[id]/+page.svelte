@@ -35,6 +35,15 @@
 	let undo = $state<{ taskId: string; projectId: string | null; position: number | null } | null>(
 		null
 	);
+	let recurrenceUndo = $state<{
+		id: string;
+		previousDate: string;
+		expectedDate: string;
+		previousStatus: 'todo' | 'in_progress' | 'cancelled';
+		expectedStatus: 'todo' | 'cancelled';
+		label: string;
+	} | null>(null);
+	let recurrenceUndoTimer: ReturnType<typeof setTimeout> | undefined;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let inFlight: Promise<boolean> | null = null;
 	let projectPath = $derived(`/projects/${data.project.id}`);
@@ -199,12 +208,67 @@
 		return response.ok;
 	}
 
-	async function taskStatus(id: string, next: TaskStatus) {
+	async function taskStatus(
+		id: string,
+		next: TaskStatus,
+		previous: TaskStatus,
+		expectedDate?: string | null
+	) {
 		if (!(await save())) return false;
-		const response = await postAction('/tasks?/status', form({ id, status: next }));
-		if (response.ok) await invalidateAll();
-		else error = response.error || 'Action impossible. Réessaie.';
+		const response = await postAction(
+			'/tasks?/status',
+			form({
+				id,
+				status: next,
+				timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+				expectedDate: expectedDate ?? ''
+			})
+		);
+		if (response.ok) {
+			if (
+				expectedDate &&
+				typeof response.data?.nextScheduledDate === 'string' &&
+				(previous === 'todo' || previous === 'in_progress' || previous === 'cancelled') &&
+				(response.data?.expectedStatus === 'todo' || response.data?.expectedStatus === 'cancelled')
+			) {
+				recurrenceUndo = {
+					id,
+					previousDate: expectedDate,
+					expectedDate: response.data.nextScheduledDate,
+					previousStatus: previous,
+					expectedStatus: response.data.expectedStatus,
+					label:
+						next === 'done'
+							? `Occurrence terminée. Prochaine date : ${response.data.nextScheduledDate}.`
+							: next === 'cancelled'
+								? 'Récurrence annulée.'
+								: `Récurrence rouverte au ${response.data.nextScheduledDate}.`
+				};
+				clearTimeout(recurrenceUndoTimer);
+				recurrenceUndoTimer = setTimeout(() => (recurrenceUndo = null), 8000);
+			}
+			await invalidateAll();
+		} else error = response.error || 'Action impossible. Réessaie.';
 		return response.ok;
+	}
+
+	async function undoRecurringTask() {
+		if (!recurrenceUndo) return;
+		const previous = recurrenceUndo;
+		const response = await postAction(
+			'/tasks?/undoRecurrence',
+			form({
+				id: previous.id,
+				previousDate: previous.previousDate,
+				expectedDate: previous.expectedDate,
+				previousStatus: previous.previousStatus,
+				expectedStatus: previous.expectedStatus
+			})
+		);
+		if (response.ok) {
+			recurrenceUndo = null;
+			await invalidateAll();
+		} else error = response.error || 'Annulation impossible.';
 	}
 
 	async function move(taskId: string, projectId: string, restorePosition?: number, isUndo = false) {
@@ -253,7 +317,10 @@
 		)
 			navigation.cancel();
 	});
-	onDestroy(() => clearTimeout(timer));
+	onDestroy(() => {
+		clearTimeout(timer);
+		clearTimeout(recurrenceUndoTimer);
+	});
 </script>
 
 <svelte:head><title>{data.project.title} · Projects · Get Things Done</title></svelte:head>
@@ -436,6 +503,15 @@
 			label="Nouvelle Task dans ce Project"
 			onCreate={createTask}
 		/>
+		{#if recurrenceUndo}<div
+				role="status"
+				class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-white p-3 text-sm"
+			>
+				<span>{recurrenceUndo.label}</span>
+				<button type="button" onclick={undoRecurringTask} class="ui-button ui-button-quiet ui-focus"
+					>Annuler l’action</button
+				>
+			</div>{/if}
 		{#if undo}<div
 				role="status"
 				class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-white p-3 text-sm"

@@ -65,9 +65,20 @@ export const actions = {
 	taskStatus: async ({ request }) => {
 		const form = await request.formData();
 		try {
-			const changed = await changeTaskStatus(form.get('id'), form.get('status'));
+			const changed = await changeTaskStatus(
+				form.get('id'),
+				form.get('status'),
+				form.get('timezone') ?? 'UTC',
+				form.get('expectedDate')
+			);
 			return changed
-				? { saved: true, previousStatus: changed.previousStatus }
+				? {
+						saved: true,
+						previousStatus: changed.previousStatus,
+						previousScheduledDate: changed.previousScheduledDate,
+						nextScheduledDate: changed.nextScheduledDate,
+						expectedStatus: changed.expectedStatus
+					}
 				: fail(404, { error: 'Task introuvable.' });
 		} catch (error) {
 			if (error instanceof InvalidTask) return fail(400, { error: error.message });

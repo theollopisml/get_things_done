@@ -1,7 +1,15 @@
 import { and, asc, desc, eq, isNull, or } from 'drizzle-orm';
+import { isDeepStrictEqual } from 'node:util';
 import { db } from '$lib/server/db';
 import { projects, tasks } from '$lib/server/db/schema';
 import { taskStatusDates, type TaskStatus } from '$lib/domain/tasks';
+import {
+	getFirstRecurrenceDateAfter,
+	getNextRecurrenceDate,
+	matchesRecurrenceDate,
+	type RecurrenceRule
+} from '$lib/domain/recurrence';
+import { Temporal } from '@js-temporal/polyfill';
 
 export async function listTasks(history: boolean) {
 	const rows = await db
@@ -41,30 +49,184 @@ export async function saveTask(
 		scheduledTime: string | null;
 		dueDate: string | null;
 		dueTime: string | null;
+		recurrenceRule: RecurrenceRule | null;
 	}
 ) {
-	const [task] = await db
-		.update(tasks)
-		.set({ ...values, updatedAt: new Date() })
-		.where(and(eq(tasks.id, id), isNull(tasks.deletedAt), isNull(tasks.recurrenceRule)))
-		.returning();
-	return task ?? null;
-}
-
-export async function setTaskStatus(id: string, status: TaskStatus) {
 	return db.transaction(async (tx) => {
 		const [current] = await tx
-			.select({ status: tasks.status })
+			.select()
 			.from(tasks)
-			.where(and(eq(tasks.id, id), isNull(tasks.deletedAt), isNull(tasks.recurrenceRule)))
+			.where(and(eq(tasks.id, id), isNull(tasks.deletedAt)))
+			.for('update');
+		if (!current) return null;
+		const changedRule = !isDeepStrictEqual(current.recurrenceRule, values.recurrenceRule);
+		const anchorDate = values.recurrenceRule
+			? changedRule
+				? values.scheduledDate
+				: (current.recurrenceAnchorDate ?? values.scheduledDate)
+			: null;
+		if (
+			values.recurrenceRule &&
+			changedRule &&
+			(current.status === 'done' || current.status === 'cancelled')
+		)
+			throw new InvalidRecurrenceChange('Rouvre la Task avant d’ajouter une récurrence.');
+		if (
+			values.recurrenceRule &&
+			anchorDate &&
+			values.scheduledDate &&
+			changedRule &&
+			!matchesRecurrenceDate(values.recurrenceRule, anchorDate, values.scheduledDate)
+		) {
+			throw new InvalidRecurrenceChange('La date planifiée doit correspondre à la règle.');
+		}
+		const [task] = await tx
+			.update(tasks)
+			.set({ ...values, recurrenceAnchorDate: anchorDate, updatedAt: new Date() })
+			.where(eq(tasks.id, id))
+			.returning();
+		return task;
+	});
+}
+
+export class InvalidRecurrenceChange extends Error {}
+
+export async function setTaskStatus(
+	id: string,
+	status: TaskStatus,
+	timezone: string,
+	expectedDate?: string | null
+) {
+	return db.transaction(async (tx) => {
+		const [current] = await tx
+			.select()
+			.from(tasks)
+			.where(and(eq(tasks.id, id), isNull(tasks.deletedAt)))
 			.for('update');
 		if (!current) return null;
 		const now = new Date();
+		const rule = current.recurrenceRule as RecurrenceRule | null;
+		if (rule && expectedDate !== null && current.scheduledDate !== expectedDate) return null;
+		if (rule && current.status === 'cancelled' && status !== 'todo' && status !== 'cancelled')
+			return null;
+		if (
+			rule &&
+			status === 'done' &&
+			(current.status === 'cancelled' || current.scheduledDate !== expectedDate)
+		)
+			return null;
+		if (rule && status === 'done' && current.status !== 'cancelled') {
+			const today = Temporal.Now.zonedDateTimeISO(timezone).toPlainDate().toString();
+			const nextDate = getNextRecurrenceDate({
+				rule,
+				anchorDate: current.recurrenceAnchorDate ?? current.scheduledDate!,
+				currentScheduledDate: current.scheduledDate!,
+				completionDate: today
+			});
+			const [task] = await tx
+				.update(tasks)
+				.set({
+					status: 'todo',
+					scheduledDate: nextDate,
+					completedAt: null,
+					cancelledAt: null,
+					updatedAt: now
+				})
+				.where(eq(tasks.id, id))
+				.returning();
+			return {
+				task,
+				previousStatus: current.status,
+				previousScheduledDate: current.scheduledDate,
+				nextScheduledDate: nextDate,
+				expectedStatus: 'todo' as const
+			};
+		}
+		if (rule && status === 'todo' && current.status === 'cancelled') {
+			const today = Temporal.Now.zonedDateTimeISO(timezone).toPlainDate().toString();
+			const nextDate = getFirstRecurrenceDateAfter(
+				rule,
+				current.recurrenceAnchorDate ?? current.scheduledDate!,
+				today
+			);
+			const [task] = await tx
+				.update(tasks)
+				.set({
+					status: 'todo',
+					scheduledDate: nextDate,
+					completedAt: null,
+					cancelledAt: null,
+					updatedAt: now
+				})
+				.where(eq(tasks.id, id))
+				.returning();
+			return {
+				task,
+				previousStatus: current.status,
+				previousScheduledDate: current.scheduledDate,
+				nextScheduledDate: nextDate,
+				expectedStatus: 'todo' as const
+			};
+		}
+		if (rule && status === 'cancelled' && current.status !== 'cancelled') {
+			const [task] = await tx
+				.update(tasks)
+				.set({ status: 'cancelled', completedAt: null, cancelledAt: now, updatedAt: now })
+				.where(eq(tasks.id, id))
+				.returning();
+			return {
+				task,
+				previousStatus: current.status,
+				previousScheduledDate: current.scheduledDate,
+				nextScheduledDate: current.scheduledDate,
+				expectedStatus: 'cancelled' as const
+			};
+		}
 		const [task] = await tx
 			.update(tasks)
 			.set({ status, ...taskStatusDates(status, now), updatedAt: now })
 			.where(eq(tasks.id, id))
 			.returning();
 		return { task, previousStatus: current.status };
+	});
+}
+
+export async function undoRecurringTransition({
+	id,
+	previousDate,
+	expectedDate,
+	previousStatus,
+	expectedStatus
+}: {
+	id: string;
+	previousDate: string;
+	expectedDate: string;
+	previousStatus: 'todo' | 'in_progress' | 'cancelled';
+	expectedStatus: 'todo' | 'cancelled';
+}) {
+	return db.transaction(async (tx) => {
+		const [current] = await tx
+			.select()
+			.from(tasks)
+			.where(and(eq(tasks.id, id), isNull(tasks.deletedAt)))
+			.for('update');
+		if (
+			!current ||
+			!current.recurrenceRule ||
+			current.status !== expectedStatus ||
+			current.scheduledDate !== expectedDate
+		)
+			return null;
+		const [task] = await tx
+			.update(tasks)
+			.set({
+				status: previousStatus,
+				scheduledDate: previousDate,
+				...taskStatusDates(previousStatus, new Date()),
+				updatedAt: new Date()
+			})
+			.where(eq(tasks.id, id))
+			.returning();
+		return task;
 	});
 }

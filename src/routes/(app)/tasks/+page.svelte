@@ -13,7 +13,14 @@
 	let error = $state('');
 	let filter = $state('all');
 	let projectFilter = $state('all');
-	let undo = $state<{ id: string; status: TaskStatus; label: string } | null>(null);
+	let undo = $state<{
+		id: string;
+		status: TaskStatus;
+		label: string;
+		previousDate?: string;
+		expectedDate?: string;
+		expectedStatus?: 'todo' | 'cancelled';
+	} | null>(null);
 	let moveUndo = $state<{ id: string; projectId: string | null; position: number | null } | null>(
 		null
 	);
@@ -76,12 +83,21 @@
 		id: string,
 		status: TaskStatus,
 		previous: TaskStatus,
+		expectedDate?: string | null,
 		isUndo = false
 	) {
 		if (busy) return false;
 		busy = true;
 		error = '';
-		const result = await postAction('/tasks?/status', form({ id, status }));
+		const result = await postAction(
+			'/tasks?/status',
+			form({
+				id,
+				status,
+				timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+				expectedDate: expectedDate ?? ''
+			})
+		);
 		if (result.ok) {
 			if (isUndo) undo = null;
 			else {
@@ -96,9 +112,23 @@
 				undo = {
 					id,
 					status: undoStatus,
+					previousDate:
+						typeof result.data?.previousScheduledDate === 'string'
+							? result.data.previousScheduledDate
+							: undefined,
+					expectedDate:
+						typeof result.data?.nextScheduledDate === 'string'
+							? result.data.nextScheduledDate
+							: undefined,
+					expectedStatus:
+						result.data?.expectedStatus === 'todo' || result.data?.expectedStatus === 'cancelled'
+							? result.data.expectedStatus
+							: undefined,
 					label:
 						status === 'done'
-							? 'Task terminée.'
+							? typeof result.data?.nextScheduledDate === 'string'
+								? `Occurrence terminée. Prochaine date : ${result.data.nextScheduledDate}.`
+								: 'Task terminée.'
 							: status === 'cancelled'
 								? 'Task annulée.'
 								: status === 'in_progress'
@@ -112,6 +142,26 @@
 		} else error = result.error || 'Action impossible. Réessaie.';
 		busy = false;
 		return result.ok;
+	}
+
+	async function undoStatus() {
+		if (!undo) return;
+		if (undo.previousDate && undo.expectedDate && undo.expectedStatus) {
+			const result = await postAction(
+				'/tasks?/undoRecurrence',
+				form({
+					id: undo.id,
+					previousDate: undo.previousDate,
+					expectedDate: undo.expectedDate,
+					previousStatus: undo.status,
+					expectedStatus: undo.expectedStatus
+				})
+			);
+			if (result.ok) {
+				undo = null;
+				await invalidateAll();
+			} else error = result.error || 'Annulation impossible.';
+		} else await changeStatus(undo.id, undo.status, undo.status, null, true);
 	}
 
 	async function move(id: string, projectId: string, position?: number, isUndo = false) {
@@ -181,8 +231,7 @@
 			<span>{undo.label}</span><button
 				type="button"
 				class="ui-button ui-button-quiet ui-focus"
-				onclick={() => undo && changeStatus(undo.id, undo.status, undo.status, true)}
-				>Annuler l’action</button
+				onclick={undoStatus}>Annuler l’action</button
 			>
 		</div>{/if}
 	{#if moveUndo}<div

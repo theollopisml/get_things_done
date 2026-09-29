@@ -53,7 +53,14 @@
 	let clockTimer: ReturnType<typeof setInterval> | undefined;
 	let taskError = $state('');
 	let taskBusy = $state(false);
-	let undo = $state<{ id: string; status: TaskStatus; label: string } | null>(null);
+	let undo = $state<{
+		id: string;
+		status: TaskStatus;
+		label: string;
+		previousDate?: string;
+		expectedDate?: string;
+		expectedStatus?: 'todo' | 'cancelled';
+	} | null>(null);
 	let moveUndo = $state<{ id: string; projectId: string | null; position: number | null } | null>(
 		null
 	);
@@ -123,10 +130,12 @@
 		clock = { today: now.toLocaleDateString('sv-SE'), nowTime: now.toTimeString().slice(0, 5) };
 	}
 
-	function statusForm(id: string, status: TaskStatus) {
+	function statusForm(id: string, status: TaskStatus, expectedDate?: string | null) {
 		const fields = new FormData();
 		fields.set('id', id);
 		fields.set('status', status);
+		fields.set('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone);
+		if (expectedDate) fields.set('expectedDate', expectedDate);
 		return fields;
 	}
 
@@ -134,12 +143,13 @@
 		id: string,
 		status: TaskStatus,
 		previous: TaskStatus,
+		expectedDate?: string | null,
 		isUndo = false
 	) {
 		if (taskBusy) return false;
 		taskBusy = true;
 		taskError = '';
-		const result = await postAction('/?/taskStatus', statusForm(id, status));
+		const result = await postAction('/?/taskStatus', statusForm(id, status, expectedDate));
 		if (result.ok) {
 			if (isUndo) undo = null;
 			else {
@@ -154,9 +164,23 @@
 				undo = {
 					id,
 					status: undoStatus,
+					previousDate:
+						typeof result.data?.previousScheduledDate === 'string'
+							? result.data.previousScheduledDate
+							: undefined,
+					expectedDate:
+						typeof result.data?.nextScheduledDate === 'string'
+							? result.data.nextScheduledDate
+							: undefined,
+					expectedStatus:
+						result.data?.expectedStatus === 'todo' || result.data?.expectedStatus === 'cancelled'
+							? result.data.expectedStatus
+							: undefined,
 					label:
 						status === 'done'
-							? 'Task terminée.'
+							? typeof result.data?.nextScheduledDate === 'string'
+								? `Occurrence terminée. Prochaine date : ${result.data.nextScheduledDate}.`
+								: 'Task terminée.'
 							: status === 'cancelled'
 								? 'Task annulée.'
 								: status === 'in_progress'
@@ -170,6 +194,23 @@
 		} else taskError = result.error || 'Action impossible. Réessaie.';
 		taskBusy = false;
 		return result.ok;
+	}
+
+	async function undoStatus() {
+		if (!undo) return;
+		if (undo.previousDate && undo.expectedDate && undo.expectedStatus) {
+			const fields = new FormData();
+			fields.set('id', undo.id);
+			fields.set('previousDate', undo.previousDate);
+			fields.set('expectedDate', undo.expectedDate);
+			fields.set('previousStatus', undo.status);
+			fields.set('expectedStatus', undo.expectedStatus);
+			const result = await postAction('/tasks?/undoRecurrence', fields);
+			if (result.ok) {
+				undo = null;
+				await invalidateAll();
+			} else taskError = result.error || 'Annulation impossible.';
+		} else await changeStatus(undo.id, undo.status, undo.status, null, true);
 	}
 
 	async function moveTask(id: string, projectId: string, isUndo = false, position?: number) {
@@ -568,8 +609,7 @@
 				<span>{undo.label}</span><button
 					type="button"
 					class="ui-button ui-button-quiet ui-focus"
-					onclick={() => undo && changeStatus(undo.id, undo.status, undo.status, true)}
-					>Annuler l’action</button
+					onclick={undoStatus}>Annuler l’action</button
 				>
 			</div>{/if}
 		{#if moveUndo}<div

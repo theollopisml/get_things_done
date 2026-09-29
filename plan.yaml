@@ -214,20 +214,20 @@ slices:
 
   - id: "10"
     name: recurrence
-    done: false
+    done: true
     tasks:
       - description: "Ajouter recurrence_rule et recurrence_anchor_date"
-        done: false
+        done: true
       - description: "Implémenter daily/weekly/monthly"
-        done: false
+        done: true
       - description: "Implémenter le moteur pur avec Temporal"
-        done: false
+        done: true
       - description: "Préserver l'ancre lors d'un postpone"
-        done: false
+        done: true
       - description: "Calculer la prochaine date sur Done/réouverture"
-        done: false
+        done: true
       - description: "Tester avance, retard, N semaines, fins de mois et années bissextiles"
-        done: false
+        done: true
 
   - id: "11"
     name: search

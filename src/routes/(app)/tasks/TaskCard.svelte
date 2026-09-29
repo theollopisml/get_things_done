@@ -4,11 +4,21 @@
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
+	import { recurrenceLabel, recurrenceRuleSchema } from '$lib/domain/recurrence';
 	import type { TaskStatus } from '$lib/domain/tasks';
 	import { postAction } from '$lib/post-action';
 	import type { PageData } from './$types';
 
 	type Task = PageData['tasks'][number];
+	const weekdays = [
+		{ day: 1, label: 'Lun' },
+		{ day: 2, label: 'Mar' },
+		{ day: 3, label: 'Mer' },
+		{ day: 4, label: 'Jeu' },
+		{ day: 5, label: 'Ven' },
+		{ day: 6, label: 'Sam' },
+		{ day: 7, label: 'Dim' }
+	];
 	let {
 		task,
 		onStatus,
@@ -16,7 +26,12 @@
 		onMove
 	}: {
 		task: Task;
-		onStatus: (id: string, status: TaskStatus, previous: TaskStatus) => Promise<boolean>;
+		onStatus: (
+			id: string,
+			status: TaskStatus,
+			previous: TaskStatus,
+			expectedDate?: string | null
+		) => Promise<boolean>;
 		projectOptions?: { id: string; title: string }[];
 		onMove?: (id: string, projectId: string) => Promise<boolean>;
 	} = $props();
@@ -28,6 +43,14 @@
 	let closing = $state(false);
 	let preview = $state(false);
 	let busy = $state(false);
+	// A draft keeps the recurrence present when the editor first opens.
+	// svelte-ignore state_referenced_locally
+	const initialRule = recurrenceRuleSchema.safeParse(task.recurrenceRule);
+	const rule = initialRule.success ? initialRule.data : null;
+	let displayRule = $derived.by(() => {
+		const parsed = recurrenceRuleSchema.safeParse(task.recurrenceRule);
+		return parsed.success ? parsed.data : null;
+	});
 	// Local edits intentionally retain their initial values across server invalidation.
 	// svelte-ignore state_referenced_locally
 	let value = $state({
@@ -36,7 +59,21 @@
 		scheduledDate: task.scheduledDate ?? '',
 		scheduledTime: task.scheduledTime?.slice(0, 5) ?? '',
 		dueDate: task.dueDate ?? '',
-		dueTime: task.dueTime?.slice(0, 5) ?? ''
+		dueTime: task.dueTime?.slice(0, 5) ?? '',
+		recurrenceFrequency: rule?.frequency ?? '',
+		recurrenceInterval: rule?.interval ?? 1,
+		recurrenceWeekdays:
+			rule?.frequency === 'weekly'
+				? rule.weekdays
+				: [
+						new Date(
+							`${task.scheduledDate ?? new Date().toLocaleDateString('sv-SE')}T12:00:00`
+						).getDay() || 7
+					],
+		recurrenceDay:
+			rule?.frequency === 'monthly'
+				? rule.day
+				: Number((task.scheduledDate ?? new Date().toLocaleDateString('sv-SE')).slice(-2))
 	});
 	const initial = JSON.stringify(value);
 	let saved = $state(initial);
@@ -51,6 +88,14 @@
 		done: 'Terminée',
 		cancelled: 'Annulée'
 	};
+
+	$effect(() => {
+		const scheduledDate = task.scheduledDate ?? '';
+		if (!editing && JSON.stringify(value) === saved && value.scheduledDate !== scheduledDate) {
+			value.scheduledDate = scheduledDate;
+			saved = JSON.stringify(value);
+		}
+	});
 
 	function schedule() {
 		clearTimeout(timer);
@@ -78,9 +123,34 @@
 		error = '';
 		const data = new FormData();
 		data.set('id', task.id);
-		for (const [key, field] of Object.entries(JSON.parse(snapshot) as Record<string, string>)) {
-			data.set(key, field);
+		const fields = JSON.parse(snapshot) as typeof value;
+		for (const key of [
+			'title',
+			'description',
+			'scheduledDate',
+			'scheduledTime',
+			'dueDate',
+			'dueTime'
+		] as const) {
+			data.set(key, fields[key]);
 		}
+		const recurrenceRule =
+			fields.recurrenceFrequency === 'daily'
+				? { frequency: 'daily', interval: Number(fields.recurrenceInterval) }
+				: fields.recurrenceFrequency === 'weekly'
+					? {
+							frequency: 'weekly',
+							interval: Number(fields.recurrenceInterval),
+							weekdays: fields.recurrenceWeekdays
+						}
+					: fields.recurrenceFrequency === 'monthly'
+						? {
+								frequency: 'monthly',
+								interval: Number(fields.recurrenceInterval),
+								day: Number(fields.recurrenceDay)
+							}
+						: null;
+		data.set('recurrenceRule', recurrenceRule ? JSON.stringify(recurrenceRule) : '');
 		inFlight = postAction('/tasks?/save', data).then((result) => {
 			if (result.ok) saved = snapshot;
 			else error = result.error || 'Sauvegarde impossible. Réessaie.';
@@ -109,7 +179,13 @@
 	async function status(next: TaskStatus) {
 		if (busy || !(await save())) return;
 		busy = true;
-		await onStatus(task.id, next, task.status);
+		const changed = await onStatus(
+			task.id,
+			next,
+			task.status,
+			value.recurrenceFrequency ? value.scheduledDate : null
+		);
+		if (changed && value.recurrenceFrequency) editing = false;
 		busy = false;
 	}
 
@@ -139,6 +215,7 @@
 					{task.dueDate
 						? ` · Échéance ${task.dueDate}${task.dueTime ? ` à ${task.dueTime.slice(0, 5)}` : ''}`
 						: ''}
+					{displayRule ? ` · ${recurrenceLabel(displayRule)}` : ''}
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
@@ -275,10 +352,77 @@
 						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
 					/></label
 				>
+				<div class="grid gap-3 rounded-xl border border-slate-200 p-3 sm:col-span-2">
+					<label class="grid gap-1 text-sm"
+						>Récurrence
+						<select
+							bind:value={value.recurrenceFrequency}
+							onchange={() => {
+								if (value.recurrenceFrequency) {
+									value.dueDate = '';
+									value.dueTime = '';
+								}
+								schedule();
+							}}
+							class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
+						>
+							<option value="">Aucune</option><option value="daily">Tous les jours</option>
+							<option value="weekly">Certains jours de la semaine</option>
+							<option value="monthly">Chaque mois</option>
+						</select>
+					</label>
+					{#if value.recurrenceFrequency}
+						<p class="text-xs text-slate-500">
+							La date planifiée est la première occurrence. Modifie-la ensuite pour reporter une
+							occurrence sans changer la cadence.
+						</p>
+						<label class="grid gap-1 text-sm"
+							>Intervalle
+							<input
+								type="number"
+								min="1"
+								max="365"
+								bind:value={value.recurrenceInterval}
+								oninput={schedule}
+								class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
+							/>
+						</label>
+						{#if value.recurrenceFrequency === 'weekly'}
+							<fieldset class="flex flex-wrap gap-3 text-sm">
+								<legend>Jours</legend>
+								{#each weekdays as weekday (weekday.day)}<label class="flex items-center gap-1"
+										><input
+											type="checkbox"
+											checked={value.recurrenceWeekdays.includes(weekday.day)}
+											onchange={(event) => {
+												value.recurrenceWeekdays = event.currentTarget.checked
+													? [...value.recurrenceWeekdays, weekday.day].sort()
+													: value.recurrenceWeekdays.filter((day) => day !== weekday.day);
+												schedule();
+											}}
+										/>{weekday.label}</label
+									>{/each}
+							</fieldset>
+						{:else if value.recurrenceFrequency === 'monthly'}
+							<label class="grid gap-1 text-sm"
+								>Jour du mois
+								<input
+									type="number"
+									min="1"
+									max="31"
+									bind:value={value.recurrenceDay}
+									oninput={schedule}
+									class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
+								/>
+							</label>
+						{/if}
+					{/if}
+				</div>
 				<label class="grid gap-1 text-sm"
 					>Échéance<input
 						type="date"
 						bind:value={value.dueDate}
+						disabled={!!value.recurrenceFrequency}
 						oninput={() => {
 							if (!value.dueDate) value.dueTime = '';
 							schedule();
@@ -290,7 +434,7 @@
 					>Heure d’échéance<input
 						type="time"
 						bind:value={value.dueTime}
-						disabled={!value.dueDate}
+						disabled={!value.dueDate || !!value.recurrenceFrequency}
 						oninput={schedule}
 						class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
 					/></label

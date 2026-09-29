@@ -15,6 +15,13 @@
       "when": 1790686780298,
       "tag": "0001_nappy_psylocke",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790689905637,
+      "tag": "0002_careful_mattie_franklin",
+      "breakpoints": true
     }
   ]
 }

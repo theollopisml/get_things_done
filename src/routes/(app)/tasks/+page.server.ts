@@ -1,5 +1,11 @@
 import { fail } from '@sveltejs/kit';
-import { addTask, changeTaskStatus, editTask, InvalidTask } from '$lib/server/application/tasks';
+import {
+	addTask,
+	changeTaskStatus,
+	editTask,
+	InvalidTask,
+	undoTaskRecurrence
+} from '$lib/server/application/tasks';
 import { InvalidProjectTask, moveTaskToProject } from '$lib/server/application/project-tasks';
 import { listProjects } from '$lib/server/repositories/projects';
 import { listTasks } from '$lib/server/repositories/tasks';
@@ -35,13 +41,42 @@ export const actions = {
 	status: async ({ request }) => {
 		const form = await request.formData();
 		try {
-			const changed = await changeTaskStatus(form.get('id'), form.get('status'));
+			const changed = await changeTaskStatus(
+				form.get('id'),
+				form.get('status'),
+				form.get('timezone') ?? 'UTC',
+				form.get('expectedDate')
+			);
 			return changed
-				? { saved: true, previousStatus: changed.previousStatus }
+				? {
+						saved: true,
+						previousStatus: changed.previousStatus,
+						previousScheduledDate: changed.previousScheduledDate,
+						nextScheduledDate: changed.nextScheduledDate,
+						expectedStatus: changed.expectedStatus
+					}
 				: fail(404, { error: 'Task introuvable.' });
 		} catch (error) {
 			if (error instanceof InvalidTask) return fail(400, { error: error.message });
 			return fail(503, { error: 'Action impossible. Réessaie.' });
+		}
+	},
+	undoRecurrence: async ({ request }) => {
+		const form = await request.formData();
+		try {
+			const task = await undoTaskRecurrence(
+				form.get('id'),
+				form.get('previousDate'),
+				form.get('expectedDate'),
+				form.get('previousStatus'),
+				form.get('expectedStatus')
+			);
+			return task
+				? { saved: true }
+				: fail(409, { error: 'Cette occurrence a changé. Impossible d’annuler.' });
+		} catch (error) {
+			if (error instanceof InvalidTask) return fail(400, { error: error.message });
+			return fail(503, { error: 'Annulation impossible. Réessaie.' });
 		}
 	},
 	move: async ({ request }) => {

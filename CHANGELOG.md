@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Manage daily, selected weekday, multiweek, and monthly Task recurrence in the Task editor, with a current occurrence and readable schedule.
+- Complete recurring Tasks into their next matching date, postpone an occurrence without shifting its cadence, and cancel or reopen recurrence with short Undo feedback.
+- Validate recurrence and scheduling constraints in PostgreSQL, with Temporal date tests for early and late completion, month ends, and leap years.
 - Add `/today`, `/thisweek`, `/thismonth`, `/thisyear`, and `/date` shortcuts to the Collector and quick Task creation, with a removable due-date badge and native calendar picker.
 - Save optional due dates when creating Tasks from the Tasks list or a Project.
 - Preserve a Collector due date through Jev classification, retry, manual review, and Task or Project type correction.
@@ -60,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Run PostgreSQL integration test files sequentially so shared database assertions are deterministic.
 - Hide completed or cancelled Tasks and Projects from Review and its Home attention count; simplify the classification editor to object type and Task project choices.
 - Let users remove a quick due-date badge with Backspace at the start of the Collector or Task field, and choose slash suggestions with arrow keys and Enter.
 - Replace native Task and Project dropdowns with consistent accessible menus and aligned chevrons.
