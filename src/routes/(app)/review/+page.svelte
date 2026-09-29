@@ -364,10 +364,17 @@
 											id="review-parent-search"
 											type="search"
 											bind:value={parentSearch}
-											placeholder="Rechercher…"
+											placeholder={options.length === 0 ? 'Aucun choix disponible' : 'Rechercher…'}
 											disabled={busy === entry.id || options.length === 0}
 											class="ui-focus min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400"
 										/>
+										{#if options.length === 0}
+											<p class="mt-2 text-xs leading-5 text-slate-600">
+												{entry.kind === 'task'
+													? 'Aucun Project disponible : seuls les Projects planifiés ou en cours peuvent accueillir une Task.'
+													: 'Aucune Vision disponible : seules les Visions actives peuvent accueillir un Project.'}
+											</p>
+										{/if}
 									</div>
 									<fieldset class="min-w-0 space-y-2">
 										<legend class="sr-only">Rattachement</legend>

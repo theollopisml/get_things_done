@@ -72,4 +72,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explain why Review parent search is unavailable when no eligible Project or Vision exists.
 - Serve the browser's fallback favicon directly without invoking session lookup.
