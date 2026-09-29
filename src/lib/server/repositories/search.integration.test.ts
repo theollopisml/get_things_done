@@ -100,4 +100,55 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('global search with PostgreSQL'
 			await db.delete(projects).where(eq(projects.id, project.id));
 		}
 	});
+
+	it('matches accents, ligatures, and decomposed text in either query direction', async () => {
+		const { db } = await import('$lib/server/db');
+		const { tasks, projects, checkpoints } = await import('$lib/server/db/schema');
+		const { searchGlobal } = await import('./search');
+		const { eq } = await import('drizzle-orm');
+		const token = crypto.randomUUID().slice(0, 8);
+		const [project] = await db
+			.insert(projects)
+			.values({
+				title: `Ecrire un livre ${token}`,
+				description: `Créer une œuvre ${token}`
+			})
+			.returning();
+		const [task] = await db
+			.insert(tasks)
+			.values({
+				title: `Écrire un livre ${token}`,
+				description: `Rédiger un résumé ${token}`,
+				projectId: project.id
+			})
+			.returning();
+		const [checkpoint] = await db
+			.insert(checkpoints)
+			.values({
+				title: `Pre\u0301parer l'ébauche ${token}`,
+				projectId: project.id,
+				position: 0
+			})
+			.returning();
+		try {
+			for (const query of [`ecrire un livre ${token}`, `écrire un livre ${token}`]) {
+				const found = await searchGlobal(query);
+				expect(found.tasks.map((item) => item.id)).toContain(task.id);
+				expect(found.projects.map((item) => item.id)).toContain(project.id);
+			}
+			expect((await searchGlobal(`resume ${token}`)).tasks.map((item) => item.id)).toContain(
+				task.id
+			);
+			expect((await searchGlobal(`oeuvre ${token}`)).projects.map((item) => item.id)).toContain(
+				project.id
+			);
+			expect(
+				(await searchGlobal(`préparer l'ébauche ${token}`)).checkpoints.map((item) => item.id)
+			).toContain(checkpoint.id);
+		} finally {
+			await db.delete(tasks).where(eq(tasks.id, task.id));
+			await db.delete(checkpoints).where(eq(checkpoints.id, checkpoint.id));
+			await db.delete(projects).where(eq(projects.id, project.id));
+		}
+	});
 });

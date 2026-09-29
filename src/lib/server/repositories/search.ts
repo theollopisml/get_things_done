@@ -3,13 +3,39 @@ import { db } from '$lib/server/db';
 import { checkpoints, projects, tasks } from '$lib/server/db/schema';
 
 const limitPerType = 5;
+const accentGroups = [
+	['àáâãäåāăą', 'a'],
+	['çćč', 'c'],
+	['ď', 'd'],
+	['èéêëēėęě', 'e'],
+	['ìíîïīį', 'i'],
+	['ł', 'l'],
+	['ñńň', 'n'],
+	['òóôõöøō', 'o'],
+	['ř', 'r'],
+	['śš', 's'],
+	['ť', 't'],
+	['ùúûüūůű', 'u'],
+	['ýÿ', 'y'],
+	['žźż', 'z']
+] as const;
+const accented = accentGroups.map(([letters]) => letters).join('');
+const plain = accentGroups.map(([letters, letter]) => letter.repeat(letters.length)).join('');
 
 function patternFor(query: string) {
-	return `%${query.replace(/[!%_]/g, '!$&')}%`;
+	const folded = query
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/\p{M}/gu, '')
+		.replaceAll('œ', 'oe')
+		.replaceAll('æ', 'ae')
+		.replaceAll('ø', 'o')
+		.replaceAll('ł', 'l');
+	return `%${folded.replace(/[!%_]/g, '!$&')}%`;
 }
 
 function matches(column: AnyColumn, pattern: string) {
-	return sql`${column} ILIKE ${pattern} ESCAPE '!'`;
+	return sql`translate(replace(replace(lower(normalize(${column}, NFC)), 'œ', 'oe'), 'æ', 'ae'), ${accented}, ${plain}) ILIKE ${pattern} ESCAPE '!'`;
 }
 
 export async function searchGlobal(query: string) {
