@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Create Visions from their overview and browse them by active, paused, or archived status.
 - Support validated Vision creation and editing, reversible archiving, and deletion that detaches Projects without changing their status.
 - Add a guarded `pnpm db:reset:dev` command to recreate the local development database and reapply migrations.
 - Manage Checkpoints within a Project with optional target dates, Markdown descriptions, manual order, and open, done, or cancelled status.
