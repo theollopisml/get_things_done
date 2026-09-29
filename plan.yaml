@@ -151,9 +151,9 @@ slices:
     done: false
     tasks:
       - description: "Créer le modèle Vision"
-        done: false
+        done: true
       - description: "Implémenter ACTIVE/PAUSED/ARCHIVED"
-        done: false
+        done: true
       - description: "Relier un Project à zéro ou une Vision"
         done: false
       - description: "Créer les pages liste/détail Vision"
