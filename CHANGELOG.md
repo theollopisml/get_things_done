@@ -90,5 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make recurrence choices readable in the dark theme by using the shared Task select menu.
+- Keep the Collector text full width below an optional due-date badge when a capture spans several lines.
 - Explain why Review parent search is unavailable when no eligible Project exists.
 - Serve the browser's fallback favicon directly without invoking session lookup.

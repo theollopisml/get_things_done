@@ -482,10 +482,10 @@
 			class="relative rounded-xl border border-slate-300 bg-white p-2 transition-[border-color,box-shadow] duration-150 focus-within:border-slate-500 focus-within:shadow-[0_0_0_3px_rgba(148,163,184,0.14)]"
 		>
 			<label for="capture" class="sr-only">Qu’est-ce qui te passe par la tête ?</label>
-			<div class="flex items-center gap-2">
+			<div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
 				{#if dueDate}
 					<span
-						class="flex max-w-[45vw] min-w-0 shrink-0 items-center rounded-md bg-slate-100 text-xs text-slate-700"
+						class="col-start-1 row-start-1 flex w-fit max-w-full min-w-0 items-center rounded-md bg-slate-100 text-xs text-slate-700"
 					>
 						<button
 							type="button"
@@ -524,15 +524,18 @@
 					placeholder="Qu’est-ce qui te passe par la tête ?"
 					rows="1"
 					style="field-sizing: content"
-					class="max-h-40 min-h-11 min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-2 py-2.5 text-base leading-6 outline-none placeholder:text-slate-400"
-				></textarea>
+					class="max-h-40 min-h-11 w-full min-w-0 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-2 py-2.5 text-base leading-6 outline-none placeholder:text-slate-400"
+					class:col-span-2={!!dueDate}
+					class:row-start-2={!!dueDate}
+					class:col-start-1={!dueDate}
+					class:row-start-1={!dueDate}></textarea>
 				<button
 					bind:this={entryButton}
 					type="submit"
 					name="kind"
 					value="entry"
 					disabled={saving}
-					class="ui-button ui-button-primary ui-focus shrink-0"
+					class="ui-button ui-button-primary ui-focus col-start-2 row-start-1 shrink-0"
 				>
 					{saving ? 'En cours…' : 'Capture'}
 				</button>

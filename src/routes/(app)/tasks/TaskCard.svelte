@@ -19,6 +19,12 @@
 		{ day: 6, label: 'Sam' },
 		{ day: 7, label: 'Dim' }
 	];
+	const recurrenceOptions = [
+		{ value: '', label: 'Aucune' },
+		{ value: 'daily', label: 'Tous les jours' },
+		{ value: 'weekly', label: 'Certains jours de la semaine' },
+		{ value: 'monthly', label: 'Chaque mois' }
+	];
 	let {
 		task,
 		onStatus,
@@ -353,24 +359,23 @@
 					/></label
 				>
 				<div class="grid gap-3 rounded-xl border border-slate-200 p-3 sm:col-span-2">
-					<label class="grid gap-1 text-sm"
-						>Récurrence
-						<select
+					<div class="grid gap-1 text-sm">
+						<span>Récurrence</span>
+						<SelectMenu
 							bind:value={value.recurrenceFrequency}
-							onchange={() => {
-								if (value.recurrenceFrequency) {
+							options={recurrenceOptions}
+							label="Récurrence"
+							triggerClass="w-full"
+							onSelect={(next) => {
+								value.recurrenceFrequency = next;
+								if (next) {
 									value.dueDate = '';
 									value.dueTime = '';
 								}
 								schedule();
 							}}
-							class="ui-focus min-h-11 rounded-lg border border-slate-300 px-3"
-						>
-							<option value="">Aucune</option><option value="daily">Tous les jours</option>
-							<option value="weekly">Certains jours de la semaine</option>
-							<option value="monthly">Chaque mois</option>
-						</select>
-					</label>
+						/>
+					</div>
 					{#if value.recurrenceFrequency}
 						<p class="text-xs text-slate-500">
 							La date planifiée est la première occurrence. Modifie-la ensuite pour reporter une
