@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Find Tasks, Projects, and Checkpoints by title or description from any private page with a keyboard and touch accessible search palette.
+- Open matching objects directly and use the palette for navigation or quick Task and Project creation.
+- Prioritize title matches and limit results per type, with PostgreSQL coverage for closed and deleted objects and literal search characters.
 - Manage daily, selected weekday, multiweek, and monthly Task recurrence in the Task editor, with a current occurrence and readable schedule.
 - Complete recurring Tasks into their next matching date, postpone an occurrence without shifting its cadence, and cancel or reopen recurrence with short Undo feedback.
 - Validate recurrence and scheduling constraints in PostgreSQL, with Temporal date tests for early and late completion, month ends, and leap years.

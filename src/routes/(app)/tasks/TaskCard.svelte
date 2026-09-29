@@ -211,7 +211,11 @@
 </script>
 
 <Dialog.Root bind:open={editing}>
-	<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+	<article
+		id={`task-${task.id}`}
+		tabindex="-1"
+		class="scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm target:ring-2 target:ring-slate-900 sm:p-5"
+	>
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div class="min-w-0 flex-1">
 				<h3 class="font-semibold break-words text-slate-950">{task.title}</h3>

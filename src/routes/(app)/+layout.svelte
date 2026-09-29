@@ -7,6 +7,7 @@
 	import ListTodo from '@lucide/svelte/icons/list-todo';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import SearchPalette from '$lib/components/SearchPalette.svelte';
 	import { authClient } from '$lib/auth-client';
 
 	const navigation = [
@@ -82,6 +83,7 @@
 				{/each}
 			</nav>
 			<div class="flex shrink-0 items-center gap-2">
+				<SearchPalette />
 				<ThemeToggle />
 				<button
 					type="button"

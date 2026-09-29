@@ -231,20 +231,20 @@ slices:
 
   - id: "11"
     name: search
-    done: false
+    done: true
     tasks:
       - description: "Implémenter searchGlobal avec PostgreSQL ILIKE"
-        done: false
+        done: true
       - description: "Rechercher title + description"
-        done: false
+        done: true
       - description: "Prioriser les matchs sur title"
-        done: false
+        done: true
       - description: "Créer Cmd/Ctrl+K"
-        done: false
+        done: true
       - description: "Limiter et grouper les résultats par type"
-        done: false
+        done: true
       - description: "Ajouter navigation et actions rapides de la palette"
-        done: false
+        done: true
 
   - id: "12"
     name: markdown
