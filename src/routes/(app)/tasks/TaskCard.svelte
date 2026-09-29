@@ -10,10 +10,14 @@
 	type Task = PageData['tasks'][number];
 	let {
 		task,
-		onStatus
+		onStatus,
+		projectOptions = [],
+		onMove
 	}: {
 		task: Task;
 		onStatus: (id: string, status: TaskStatus, previous: TaskStatus) => Promise<boolean>;
+		projectOptions?: { id: string; title: string }[];
+		onMove?: (id: string, projectId: string) => Promise<void>;
 	} = $props();
 	let editing = $state(false);
 	let closing = $state(false);
@@ -133,6 +137,17 @@
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
+				{#if onMove}<label class="flex items-center gap-2 text-sm text-slate-600"
+						>Project<select
+							value={task.projectId ?? ''}
+							disabled={busy}
+							onchange={(event) => onMove?.(task.id, event.currentTarget.value)}
+							class="ui-focus min-h-11 rounded-lg border border-slate-300 bg-white px-3"
+							><option value="">Aucun</option>{#each projectOptions as option (option.id)}<option
+									value={option.id}>{option.title}</option
+								>{/each}</select
+						></label
+					>{/if}
 				{#if task.status === 'todo' || task.status === 'in_progress'}
 					<button
 						type="button"

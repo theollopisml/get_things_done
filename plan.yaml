@@ -112,22 +112,22 @@ slices:
 
   - id: "06"
     name: projects
-    done: false
+    done: true
     tasks:
       - description: "Créer le modèle Project"
         done: true
       - description: "Implémenter PLANNED/ACTIVE/PAUSED/DONE/CANCELLED"
-        done: false
+        done: true
       - description: "Relier une Task à zéro ou un Project"
-        done: false
+        done: true
       - description: "Implémenter l'ordre manuel des Tasks"
-        done: false
+        done: true
       - description: "Calculer TO_BUILD"
-        done: false
+        done: true
       - description: "Créer les pages liste/détail Project"
-        done: false
+        done: true
       - description: "Appliquer les règles d'exposition selon le statut du Project"
-        done: false
+        done: true
 
   - id: "07"
     name: checkpoints

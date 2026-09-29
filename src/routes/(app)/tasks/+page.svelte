@@ -14,6 +14,9 @@
 	let filter = $state('all');
 	let projectFilter = $state('all');
 	let undo = $state<{ id: string; status: TaskStatus; label: string } | null>(null);
+	let moveUndo = $state<{ id: string; projectId: string | null; position: number | null } | null>(
+		null
+	);
 	let busy = $state(false);
 	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 	let today = new Date().toLocaleDateString('sv-SE');
@@ -104,6 +107,26 @@
 		return result.ok;
 	}
 
+	async function move(id: string, projectId: string, position?: number, isUndo = false) {
+		if (busy) return;
+		busy = true;
+		error = '';
+		const fields = form({ id, projectId });
+		if (position !== undefined) fields.set('position', String(position));
+		const result = await postAction('/tasks?/move', fields);
+		if (result.ok) {
+			moveUndo = isUndo
+				? null
+				: {
+						id,
+						projectId: (result.data?.previousProjectId as string | null) ?? null,
+						position: (result.data?.previousPosition as number | null) ?? null
+					};
+			await invalidateAll();
+		} else error = result.error || 'Déplacement impossible. Réessaie.';
+		busy = false;
+	}
+
 	onMount(() => {
 		clockTimer = setInterval(() => {
 			today = new Date().toLocaleDateString('sv-SE');
@@ -171,6 +194,19 @@
 				>Annuler l’action</button
 			>
 		</div>{/if}
+	{#if moveUndo}<div
+			role="status"
+			class="flex items-center gap-3 rounded-xl border border-slate-300 bg-white p-3 text-sm"
+		>
+			<span>Task déplacée.</span><button
+				type="button"
+				class="ui-button ui-button-quiet ui-focus"
+				onclick={() =>
+					moveUndo &&
+					move(moveUndo.id, moveUndo.projectId ?? '', moveUndo.position ?? undefined, true)}
+				>Annuler le déplacement</button
+			>
+		</div>{/if}
 	{#if error}<p role="alert" class="text-sm text-red-700">{error}</p>{/if}
 	{#if !data.history}
 		<div class="flex flex-wrap gap-4">
@@ -216,7 +252,12 @@
 					<h2 class="text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase">
 						{group.label} <span class="text-slate-400">{items.length}</span>
 					</h2>
-					{#each items as task (task.id)}<TaskCard {task} onStatus={changeStatus} />{/each}
+					{#each items as task (task.id)}<TaskCard
+							{task}
+							onStatus={changeStatus}
+							projectOptions={data.projectOptions}
+							onMove={move}
+						/>{/each}
 				</section>
 			{/if}
 		{/each}

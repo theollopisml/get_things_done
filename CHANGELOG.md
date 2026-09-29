@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Create Projects from the overview and manage their details, dates, status, and linked Tasks from a dedicated page.
+- Move Tasks between Projects or detach them with Undo, add Tasks within a Project, and reorder them locally.
+- Show factual Task and Checkpoint counts and a calculated TO_BUILD indicator for empty open Projects.
 - Add validated Project creation, editing, and lifecycle operations that preserve the first activation date and leave linked Tasks unchanged.
 - Preview a Task's Markdown description from its current draft in the edit modal, with common formatting and safe links.
 - Persist one-off Task status transitions, scheduling dates, optional times, and closure metadata with validation and PostgreSQL tests.
