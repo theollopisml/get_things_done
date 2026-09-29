@@ -204,18 +204,19 @@
 		method="POST"
 		action="?/capture"
 		onsubmit={submit}
-		class="rounded-xl border border-slate-300 bg-white p-2"
+		class="rounded-xl border border-slate-300 bg-white p-2 transition-[border-color,box-shadow] duration-150 focus-within:border-slate-500 focus-within:shadow-[0_0_0_3px_rgba(148,163,184,0.14)]"
 	>
 		<label for="capture" class="sr-only">Qu’est-ce qui te passe par la tête ?</label>
-		<div class="flex items-end gap-2">
+		<div class="flex items-center gap-2">
 			<textarea
 				id="capture"
 				name="rawContent"
 				bind:value={content}
 				onkeydown={onKeydown}
 				placeholder="Qu’est-ce qui te passe par la tête ?"
-				rows="2"
-				class="ui-focus min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-2 py-1 text-base leading-6 placeholder:text-slate-400"
+				rows="1"
+				style="field-sizing: content"
+				class="max-h-40 min-h-11 min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-2 py-2.5 text-base leading-6 outline-none placeholder:text-slate-400"
 			></textarea>
 			<button
 				bind:this={entryButton}

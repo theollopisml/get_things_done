@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Center the Collector text vertically in its compact field and use a subtle slate focus treatment.
 - Keep classification, Review corrections, and Project pages focused on Tasks and Projects; a Project has no parent category.
 - Replace the development migration history with a fresh baseline and reset the local database, including accounts and sessions.
 - Make the Task title field as wide as its description in the edit dialog.
