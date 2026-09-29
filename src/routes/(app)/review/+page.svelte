@@ -30,7 +30,7 @@
 		const options = entry.kind === 'task' ? data.parents.projects : [];
 		editTrigger = trigger;
 		editing = entry.id;
-		selectedKind = '';
+		selectedKind = entry.kind;
 		selectedRelation =
 			entry.parentId && options.some((option) => option.id === entry.parentId)
 				? entry.parentId
@@ -242,8 +242,8 @@
 						<Dialog.Title class="text-xl font-semibold text-slate-950"
 							>Modifier la classification</Dialog.Title
 						>
-						<Dialog.Description class="mt-1 text-sm text-slate-600"
-							>Corrige le type ou le rattachement choisi par Jev.</Dialog.Description
+						<Dialog.Description class="sr-only"
+							>Choisir le type d’objet et, pour une Task, son Project rattaché.</Dialog.Description
 						>
 					</div>
 					<button
@@ -258,18 +258,7 @@
 					<p class="text-sm break-words whitespace-pre-wrap text-slate-700">{entry.rawContent}</p>
 					<div class="grid items-stretch gap-3 {entry.kind === 'task' ? 'sm:grid-cols-2' : ''}">
 						<section class="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
-							<div class="sm:min-h-24">
-								<h2 class="flex items-center gap-2 text-sm font-semibold text-slate-950">
-									<span
-										class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs text-white"
-										>1</span
-									>
-									Type d’objet
-								</h2>
-								<p class="mt-2 text-xs leading-5 text-slate-600">
-									Actuel : {kindLabels[entry.kind]}. Le titre et la description seront conservés.
-								</p>
-							</div>
+							<h2 class="text-sm font-semibold text-slate-950">Type d’objet</h2>
 							<form
 								method="POST"
 								action="?/type"
@@ -279,40 +268,35 @@
 								<input type="hidden" name="id" value={entry.id} />
 								<input type="hidden" name="kind" value={selectedKind} />
 								<fieldset class="space-y-2">
-									<legend class="mb-2 text-xs font-medium text-slate-700">Nouveau type</legend>
+									<legend class="sr-only">Type d’objet</legend>
 									{#each Object.entries(kindLabels) as [kind, label] (kind)}
-										{#if kind !== entry.kind}
-											<label
-												class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2 {selectedKind ===
-												kind
-													? 'border-slate-900 bg-white text-slate-950 shadow-sm'
-													: 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'}"
-											>
-												<input
-													type="radio"
-													name="kindChoice"
-													bind:group={selectedKind}
-													value={kind}
-													disabled={busy === entry.id}
-													class="sr-only"
-												/>
-												<span>{label}</span>
-												<span
-													aria-hidden="true"
-													class="ml-auto size-4 rounded-full border {selectedKind === kind
-														? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_var(--color-white)]'
-														: 'border-slate-300 bg-white'}"
-												></span>
-											</label>
-										{/if}
+										<label
+											class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2 {selectedKind ===
+											kind
+												? 'border-slate-900 bg-white text-slate-950 shadow-sm'
+												: 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'}"
+										>
+											<input
+												type="radio"
+												name="kindChoice"
+												bind:group={selectedKind}
+												value={kind}
+												disabled={busy === entry.id}
+												class="sr-only"
+											/>
+											<span>{label}</span>
+											<span
+												aria-hidden="true"
+												class="ml-auto size-4 rounded-full border {selectedKind === kind
+													? 'border-slate-900 bg-slate-900 shadow-[inset_0_0_0_3px_var(--color-white)]'
+													: 'border-slate-300 bg-white'}"
+											></span>
+										</label>
 									{/each}
 								</fieldset>
-								<p class="text-xs leading-5 text-slate-500">
-									Le nouvel objet sera sans rattachement.
-								</p>
 								<button
 									type="submit"
-									disabled={busy === entry.id || !selectedKind}
+									disabled={busy === entry.id || selectedKind === entry.kind}
 									class="ui-button ui-button-primary ui-focus mt-auto w-full"
 									>Changer le type</button
 								>
@@ -326,21 +310,7 @@
 									.includes(parentSearch.trim().toLocaleLowerCase('fr'))
 							)}
 							<section class="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
-								<div class="sm:min-h-24">
-									<h2 class="flex items-center gap-2 text-sm font-semibold text-slate-950">
-										<span
-											class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs text-white"
-											>2</span
-										>
-										Rattachement
-									</h2>
-									<p class="mt-2 text-xs leading-5 text-slate-600">
-										Actuel : <span
-											class="inline-block max-w-40 truncate align-bottom font-medium text-slate-800"
-											title={entry.parentTitle ?? undefined}>{entry.parentTitle ?? 'Aucun'}</span
-										>. Choisis un Project.
-									</p>
-								</div>
+								<h2 class="text-sm font-semibold text-slate-950">Projet rattaché</h2>
 								<form
 									method="POST"
 									action="?/relation"

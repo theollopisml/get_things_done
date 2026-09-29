@@ -92,6 +92,8 @@ slices:
         done: true
       - description: "Tester Jev simulé, idempotence, transactions, corrections, échecs et parcours UI"
         done: true
+      - description: "Masquer les objets terminés ou annulés de la Revue et simplifier le modal de classification"
+        done: true
 
   - id: "05"
     name: tasks

@@ -88,6 +88,76 @@ describe.runIf(process.env.RUN_DB_TESTS === '1')('Review routes', () => {
 		}
 	});
 
+	it('hides completed and cancelled objects from Review and the Home count until reopened', async () => {
+		const { db } = await import('$lib/server/db');
+		const { entries, projects, tasks } = await import('$lib/server/db/schema');
+		const { countReviewAttention } = await import('$lib/server/repositories/captures');
+		const { load } = await import('./+page.server');
+		const { eq } = await import('drizzle-orm');
+		const now = new Date();
+		const createdTasks = await db
+			.insert(tasks)
+			.values([
+				{ title: 'Task terminée', status: 'done' },
+				{ title: 'Task annulée', status: 'cancelled' }
+			])
+			.returning();
+		const createdProjects = await db
+			.insert(projects)
+			.values([
+				{ title: 'Project terminé', status: 'done' },
+				{ title: 'Project annulé', status: 'cancelled' }
+			])
+			.returning();
+		const createdEntries = await db
+			.insert(entries)
+			.values([
+				...createdTasks.map((task) => ({
+					rawContent: task.title,
+					classificationState: 'classified' as const,
+					classificationSource: 'jev' as const,
+					classifiedAt: now,
+					taskId: task.id
+				})),
+				...createdProjects.map((project) => ({
+					rawContent: project.title,
+					classificationState: 'classified' as const,
+					classificationSource: 'jev' as const,
+					classifiedAt: now,
+					projectId: project.id
+				}))
+			])
+			.returning();
+		try {
+			const before = await countReviewAttention();
+			for (const filter of ['', '?filter=all']) {
+				const result = (await load({
+					url: new URL(`http://localhost/review${filter}`)
+				} as Parameters<typeof load>[0])) as { entries: { id: string }[] };
+				for (const entry of createdEntries)
+					expect(result.entries.map((item) => item.id)).not.toContain(entry.id);
+			}
+			await db.update(tasks).set({ status: 'todo' }).where(eq(tasks.id, createdTasks[0].id));
+			await db
+				.update(projects)
+				.set({ status: 'active' })
+				.where(eq(projects.id, createdProjects[0].id));
+			const reopened = (await load({
+				url: new URL('http://localhost/review')
+			} as Parameters<typeof load>[0])) as { entries: { id: string }[] };
+			expect(reopened.entries.map((item) => item.id)).toContain(createdEntries[0].id);
+			expect(reopened.entries.map((item) => item.id)).toContain(createdEntries[2].id);
+			expect(reopened.entries.map((item) => item.id)).not.toContain(createdEntries[1].id);
+			expect(reopened.entries.map((item) => item.id)).not.toContain(createdEntries[3].id);
+			expect((await countReviewAttention()).unreviewed).toBe(before.unreviewed + 2);
+		} finally {
+			for (const entry of createdEntries) await db.delete(entries).where(eq(entries.id, entry.id));
+			for (const task of createdTasks) await db.delete(tasks).where(eq(tasks.id, task.id));
+			for (const project of createdProjects)
+				await db.delete(projects).where(eq(projects.id, project.id));
+		}
+	});
+
 	it('keeps failed captures available for manual processing', async () => {
 		const { db } = await import('$lib/server/db');
 		const { entries, tasks } = await import('$lib/server/db/schema');

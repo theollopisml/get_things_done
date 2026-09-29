@@ -140,7 +140,10 @@ La clé d'idempotence doit retrouver le même texte et la même date.
 
 Les requêtes ordinaires de la section « Non classées » de Revue ne prennent que les Entries
 `pending|failed` non supprimées ; la Revue prend les Entries
-`classified` par Jev, y compris celles avec `reviewed_at`.
+`classified` par Jev, y compris celles avec `reviewed_at`, sauf si la
+Task ou le Project lié est `done` ou `cancelled`. Le compteur des
+classifications à revoir applique le même filtre. L’Entry reste persistée
+et redevient visible si l’objet est rouvert.
 
 ### projects
 

@@ -201,7 +201,7 @@ Entry
 - aucune décision de type obligatoire pour l’utilisateur à la capture ;
 - aucune date d’exécution propre à l’Entry ; `requested_due_date` conserve seulement l’échéance à appliquer à l’objet classifié ;
 - `classification_state` décrit le traitement de la capture, sans être un statut de Task ou Project ;
-- une Entry classifiée automatiquement quitte la section « Non classées » de Revue et reste visible dans la Revue, y compris après confirmation ;
+- une Entry classifiée automatiquement quitte la section « Non classées » de Revue et reste visible dans la Revue, y compris après confirmation, tant que sa Task ou son Project n’est ni terminé ni annulé ;
 - une Entry non classifiée reste éditable avec autosave ;
 - la revue humaine n’est jamais un prérequis à l’utilisation de l’objet créé ;
 - une Entry non classifiée peut être supprimée directement ; la suppression d’un objet classifié suit les règles de Trash ;
@@ -445,7 +445,7 @@ L’action primaire ne demande aucun type :
 capture → Entry persistée → Jev → Task | Project → Revue
 ```
 
-Jev choisit parmi ces deux types définis par l’application. Un résultat valide crée immédiatement l’objet métier, utilisable avant toute revue humaine. L’Entry conserve la capture d’origine, le type retenu et un lien vers cet objet ; la Revue montre toutes les classifications automatiques, confirmées ou non. Le texte de la capture est transmis à OpenRouter et TypeSafe pour cette décision.
+Jev choisit parmi ces deux types définis par l’application. Un résultat valide crée immédiatement l’objet métier, utilisable avant toute revue humaine. L’Entry conserve la capture d’origine, le type retenu et un lien vers cet objet ; la Revue montre les classifications automatiques, confirmées ou non, dont l’objet n’est ni terminé ni annulé. Le texte de la capture est transmis à OpenRouter et TypeSafe pour cette décision.
 
 Le Collector confirme la persistance de l’Entry sans attendre Jev et reste disponible pour une autre capture. Une notification visible indique d’abord que le classement est en cours, puis le type retenu et, pour une Task, le Project de rattachement s’il existe. Elle indique aussi l’absence de rattachement.
 
@@ -513,7 +513,7 @@ Le classement Jev se poursuit côté serveur après cette confirmation. Si le pr
 
 ### 10.1 Revue des classifications automatiques
 
-`Revue` est l’entrée de navigation principale. Elle affiche toutes les captures classifiées automatiquement par Jev, récentes en premier, avec le texte d’origine, le type et le rattachement retenus, ainsi que l’état « à revoir » ou « confirmé ». Les captures confirmées restent consultables. Un filtre permet de ne voir que celles à revoir.
+`Revue` est l’entrée de navigation principale. Elle affiche les captures classifiées automatiquement par Jev dont la Task ou le Project n’est ni terminé ni annulé, récentes en premier, avec le texte d’origine, le type et le rattachement retenus, ainsi que l’état « à revoir » ou « confirmé ». Les captures confirmées restent consultables tant que l’objet reste ouvert ; un objet rouvert réapparaît. Un filtre permet de ne voir que celles à revoir. Le compteur « à confirmer » de la Home suit la même règle.
 
 Une classification Jev est appliquée avant confirmation humaine : la Revue sert à vérifier et corriger, pas à autoriser la création de l’objet.
 
@@ -1500,7 +1500,7 @@ La V1 est considérée fonctionnellement complète lorsque les scénarios suivan
 
 ### Revue et captures non classées
 
-- afficher toutes les classifications Jev, y compris celles déjà confirmées, les plus récentes en premier ;
+- afficher les classifications Jev dont l’objet n’est ni terminé ni annulé, y compris celles déjà confirmées, les plus récentes en premier ;
 - confirmer ou corriger le type et le rattachement depuis la Revue ;
 - ne jamais supprimer silencieusement des données lors d’une correction de type ;
 - laisser un rattachement vide si aucun Project admissible n’est choisi avec assez de certitude ;

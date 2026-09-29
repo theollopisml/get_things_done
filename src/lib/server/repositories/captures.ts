@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
 import { checkpoints, entries, projects, tasks } from '$lib/server/db/schema';
@@ -8,18 +8,25 @@ import type { JevClassification } from '$lib/server/jev/classification';
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const taskParentProject = alias(projects, 'review_task_parent_project');
+const reviewableObject = or(
+	inArray(tasks.status, ['todo', 'in_progress']),
+	inArray(projects.status, ['planned', 'active', 'paused'])
+);
 
 export async function countReviewAttention() {
 	const [[unreviewed], [failed]] = await Promise.all([
 		db
 			.select({ value: count() })
 			.from(entries)
+			.leftJoin(tasks, eq(entries.taskId, tasks.id))
+			.leftJoin(projects, eq(entries.projectId, projects.id))
 			.where(
 				and(
 					isNull(entries.deletedAt),
 					eq(entries.classificationState, 'classified'),
 					eq(entries.classificationSource, 'jev'),
-					isNull(entries.reviewedAt)
+					isNull(entries.reviewedAt),
+					reviewableObject
 				)
 			),
 		db
@@ -57,6 +64,7 @@ export async function listJevReviewEntries(onlyUnreviewed = false) {
 				isNull(entries.deletedAt),
 				eq(entries.classificationState, 'classified'),
 				eq(entries.classificationSource, 'jev'),
+				reviewableObject,
 				...(onlyUnreviewed ? [isNull(entries.reviewedAt)] : [])
 			)
 		)
