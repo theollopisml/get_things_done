@@ -15,7 +15,7 @@ docker run -d --name "$project-db" --network "$project" --network-alias db \
   -e POSTGRES_PASSWORD=restore-only -e POSTGRES_DB=get_things_done \
   postgres:17-alpine >/dev/null
 for attempt in {1..30}; do
-  if docker exec "$project-db" pg_isready -U postgres -d get_things_done >/dev/null 2>&1; then break; fi
+  if docker exec "$project-db" pg_isready -h 127.0.0.1 -U postgres -d get_things_done >/dev/null 2>&1; then break; fi
   sleep 1
 done
 # Always restore into a newly created, isolated container, never a user-supplied DB URL.

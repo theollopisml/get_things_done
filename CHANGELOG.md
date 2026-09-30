@@ -113,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wait for PostgreSQL TCP readiness before migrations and restore checks, avoiding its temporary initialization server.
 - Keep Collector drafts retryable after a failed or lost response, trap focus and restore it in purge confirmations, and focus the first capture when sequential review starts.
 - Improve muted text contrast in the light theme and distribute mobile navigation across its four actual destinations.
 - Find the same Tasks, Projects, and Checkpoints whether search text uses French accents or not, including common ligatures.

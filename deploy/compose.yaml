@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U gtd -d get_things_done']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U gtd -d get_things_done']
       interval: 5s
       timeout: 3s
       retries: 12
