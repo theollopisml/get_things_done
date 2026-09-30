@@ -98,6 +98,7 @@
 					<div class="grid gap-3 sm:grid-cols-2">
 						{#each items as project (project.id)}
 							<a
+								data-keyboard-item
 								href={resolve(`/projects/${project.id}`)}
 								class="ui-focus block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-400"
 							>

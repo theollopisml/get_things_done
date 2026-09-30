@@ -24,6 +24,7 @@
 		open: 'Ouvert'
 	};
 	const shortcuts = [
+		{ label: 'Collector', href: `${resolve('/')}#capture` },
 		{ label: 'Revue', href: resolve('/review') },
 		{ label: 'Tasks', href: resolve('/tasks') },
 		{ label: 'Projects', href: resolve('/projects') },
@@ -40,6 +41,7 @@
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let controller: AbortController | undefined;
 	let sequence = 0;
+	let navigating = false;
 	let hasResults = $derived(
 		results.tasks.length + results.projects.length + results.checkpoints.length > 0
 	);
@@ -55,8 +57,14 @@
 	}
 
 	function setOpen(next: boolean) {
+		if (next) navigating = false;
 		if (!next) reset();
 		open = next;
+	}
+
+	function followLink() {
+		navigating = true;
+		setOpen(false);
 	}
 
 	async function search(value: string, request: number) {
@@ -161,7 +169,13 @@
 				event.preventDefault();
 				input?.focus();
 			}}
-			onCloseAutoFocus={() => reset()}
+			onCloseAutoFocus={(event) => {
+				// The shell focuses the destination after navigation. Returning to the
+				// search trigger here would steal that focus, especially in WebKit.
+				if (navigating) event.preventDefault();
+				navigating = false;
+				reset();
+			}}
 			class="fixed top-[12dvh] left-1/2 z-50 flex max-h-[76dvh] w-[min(calc(100vw-2rem),42rem)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
 		>
 			<div class="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
@@ -214,7 +228,7 @@
 								<a
 									data-palette-link
 									href={itemHref(group.type as keyof Results, item)}
-									onclick={() => setOpen(false)}
+									onclick={followLink}
 									class="ui-focus block rounded-lg px-3 py-2 text-sm hover:bg-slate-100 focus:bg-slate-100"
 								>
 									<span class="block font-medium break-words text-slate-950">{item.title}</span>
@@ -238,7 +252,7 @@
 						<a
 							data-palette-link
 							href={shortcut.href}
-							onclick={() => setOpen(false)}
+							onclick={followLink}
 							class="ui-focus block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 focus:bg-slate-100"
 							>{shortcut.label}</a
 						>

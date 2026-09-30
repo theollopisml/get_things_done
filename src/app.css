@@ -51,6 +51,7 @@
 
 	html[data-theme='light'] {
 		color-scheme: light;
+		--color-slate-400: #64748b;
 	}
 
 	html {

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { afterNavigate, goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
 	import House from '@lucide/svelte/icons/house';
@@ -21,6 +23,63 @@
 	let { children } = $props();
 	let pending = $state(false);
 	let error = $state('');
+
+	function focusHash() {
+		const id = window.location.hash.slice(1);
+		if (!id) return;
+		const target = document.getElementById(id);
+		// Creation shortcuts and search results should move focus as well as scroll.
+		if (target instanceof HTMLElement) {
+			// WebKit can focus an input through a hash without activating its caret.
+			// Re-enter focus so the creation field accepts typing immediately.
+			if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+				target.blur();
+			target.focus();
+		}
+	}
+
+	afterNavigate(focusHash);
+
+	onMount(() => {
+		function keyboard(event: KeyboardEvent) {
+			if (
+				event.defaultPrevented ||
+				event.isComposing ||
+				event.ctrlKey ||
+				event.metaKey ||
+				event.altKey
+			)
+				return;
+			const target = event.target;
+			if (
+				!(target instanceof HTMLElement) ||
+				target.closest('input, textarea, select, [contenteditable], [role="dialog"]')
+			)
+				return;
+			if (event.key === '/') {
+				event.preventDefault();
+				if (page.url.pathname === '/') document.getElementById('capture')?.focus();
+				else void goto(resolve('/#capture'));
+				return;
+			}
+			if (!target.matches('[data-keyboard-item]')) return;
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				const items = [...document.querySelectorAll<HTMLElement>('[data-keyboard-item]')];
+				const next = items.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1);
+				if (items[next]) {
+					event.preventDefault();
+					items[next].focus();
+				}
+			}
+		}
+		window.addEventListener('keydown', keyboard);
+		// SvelteKit leaves same-page anchors to the browser, without afterNavigate.
+		window.addEventListener('hashchange', focusHash);
+		return () => {
+			window.removeEventListener('keydown', keyboard);
+			window.removeEventListener('hashchange', focusHash);
+		};
+	});
 
 	async function signOut() {
 		pending = true;
@@ -126,7 +185,7 @@
 		aria-label="Navigation principale"
 		class="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
 	>
-		<div class="mx-auto grid max-w-2xl grid-cols-5 px-1 sm:px-4">
+		<div class="mx-auto grid max-w-2xl grid-cols-4 px-1 sm:px-4">
 			{#each navigation as item (item.href)}
 				{@const active = page.url.pathname === item.href}
 				<a

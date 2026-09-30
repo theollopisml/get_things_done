@@ -58,6 +58,55 @@ une migration avec `pnpm db:generate`, relire son SQL dans
 `pnpm check` exécute le lint, le typecheck, les tests unitaires et le build.
 La CI exécute ces contrôles et applique les migrations sur un PostgreSQL neuf.
 
+## Vérifications de la slice quality
+
+```sh
+pnpm check
+pnpm test:integration
+pnpm exec playwright install --with-deps chromium webkit
+pnpm test:e2e
+```
+
+Les tests d'intégration utilisent `DATABASE_URL` et nettoient leurs propres objets.
+Les E2E utilisent exclusivement une base locale nommée `get_things_done_e2e`, créée
+et migrée automatiquement sur le PostgreSQL local. Ils **effacent le contenu de cette
+base de test avant chaque scénario**, sans toucher à la base de développement.
+Pour changer les identifiants ou le port PostgreSQL, définir `E2E_DATABASE_URL` ;
+le lanceur refuse tout hôte distant ou nom de base différent. Le compte PostgreSQL
+doit pouvoir créer cette base, ou elle doit déjà exister.
+
+Playwright lance le build Node sur `127.0.0.1:4173`, avec Chromium desktop, Chromium
+mobile et WebKit. Ce port doit être libre. Les scénarios injectent des sessions
+Better Auth signées et des comptes GitHub de test, puis passent par les protections
+serveur normales. Ils vérifient aussi le refus des sessions anonymes et non propriétaires.
+L'échange OAuth réel avec GitHub n'est pas automatisé. Un module chargé uniquement
+par le lanceur de tests simule les réponses OpenRouter ; aucune clé réelle n'est utilisée
+et aucun mode de contournement n'est ajouté à l'application.
+
+Pour relancer un scénario sur le dernier build :
+
+```sh
+pnpm exec playwright test --project=desktop --grep 'Collector'
+pnpm exec playwright show-report
+```
+
+Les rapports conservent les captures et traces des échecs, ainsi que les mesures
+de navigation sur un jeu de 100 Tasks et 20 Checkpoints. La CI exécute les trois
+profils et conserve ces artefacts pendant sept jours. Ces mesures servent à détecter
+des lenteurs observables, sans imposer de budget dépendant de la machine de test.
+
+Les raccourcis sont disponibles sans modifier la saisie dans les champs :
+
+- `Ctrl/Cmd + K` : ouvrir la recherche, naviguer ou créer depuis la palette ;
+- `/` : revenir au Collector et le focaliser ;
+- `↑/↓` sur un bouton « Modifier » ou une carte Project : passer à l'objet voisin ;
+- `Tab`, `Maj + Tab`, `Entrée` : atteindre et activer les actions ;
+- `Échap` : fermer une modale ou le calendrier, avec retour du focus ;
+- Collector : `Entrée` capture, `Maj + Entrée` insère une nouvelle ligne.
+
+La palette focalise les champs de création et les objets ouverts depuis les résultats.
+Les mêmes opérations restent accessibles au tactile.
+
 ## Diagnostic et supervision
 
 `GET /health` est public et renvoie `200` lorsque le processus sert des requêtes.

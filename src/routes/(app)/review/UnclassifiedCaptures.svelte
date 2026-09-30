@@ -191,9 +191,10 @@
 			<button
 				type="button"
 				class="ui-button ui-button-primary ui-focus"
-				onclick={() => {
+				onclick={async () => {
 					processing = !processing;
 					skipped = [];
+					await focusCurrent();
 				}}
 			>
 				{processing ? 'Voir la liste' : 'Traiter une par une'}

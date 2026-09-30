@@ -540,7 +540,18 @@
 					{saving ? 'En cours…' : 'Capture'}
 				</button>
 			</div>
-			{#if error}<p role="alert" class="mt-3 text-sm text-red-700">{error}</p>{/if}
+			{#if error}
+				<div class="mt-3 flex flex-wrap items-center gap-2">
+					<p role="alert" class="text-sm text-red-700">{error}</p>
+					<button
+						type="submit"
+						name="kind"
+						value="entry"
+						disabled={saving}
+						class="ui-button ui-button-quiet ui-focus">Réessayer</button
+					>
+				</div>
+			{/if}
 			{#if suggestionsOpen && matchingCommands.length}
 				<div
 					id="capture-due-suggestions"

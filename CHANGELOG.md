@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Verify critical workflows with Playwright on desktop, mobile, and WebKit, using an isolated PostgreSQL database, real session checks, simulated Jev responses, and CI failure reports.
+- Cover concurrent capture requests, delayed Jev responses, manual classification races, and stale capture retries against PostgreSQL.
+- Reach the Collector with `/`, move between object editors with arrow keys, and focus creation fields and objects opened through the search palette.
 - Expose public `/health` and `/ready` probes, with uncached responses and a bounded PostgreSQL readiness check.
 - Diagnose migration history and business integrity with read-only `pnpm run doctor`, verbose object IDs, and actionable exit codes.
 - Emit structured HTTP and Jev logs with request correlation, durations, and safe error codes while excluding user content and secrets.
@@ -104,6 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep Collector drafts retryable after a failed or lost response, trap focus and restore it in purge confirmations, and focus the first capture when sequential review starts.
+- Improve muted text contrast in the light theme and distribute mobile navigation across its four actual destinations.
 - Find the same Tasks, Projects, and Checkpoints whether search text uses French accents or not, including common ligatures.
 - Make recurrence choices readable in the dark theme by using the shared Task select menu.
 - Keep the Collector text full width below an optional due-date badge when a capture spans several lines.

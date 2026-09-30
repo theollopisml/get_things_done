@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { postAction } from '$lib/post-action';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -8,6 +9,7 @@
 	let error = $state('');
 	let message = $state('');
 	let purgeTarget = $state<{ id: string; kind: string; title: string } | null>(null);
+	let purgeOpen = $state(false);
 	const labels = { task: 'Task', project: 'Project', checkpoint: 'Checkpoint' };
 
 	async function act(action: 'restore' | 'purge', kind: string, id: string) {
@@ -21,6 +23,7 @@
 		if (action === 'purge') form.set('confirmation', 'PURGER');
 		const result = await postAction(`/trash?/${action}`, form);
 		if (result.ok) {
+			purgeOpen = false;
 			purgeTarget = null;
 			message = action === 'restore' ? 'Objet restauré.' : 'Objet supprimé définitivement.';
 			await invalidateAll();
@@ -73,7 +76,11 @@
 						<button
 							type="button"
 							disabled={busy}
-							onclick={() => (purgeTarget = item)}
+							onclick={() => {
+								purgeTarget = item;
+								error = '';
+								purgeOpen = true;
+							}}
 							class="ui-button ui-button-quiet ui-focus text-red-700">Purger</button
 						>
 					</div>
@@ -81,38 +88,15 @@
 			</li>
 		{/each}
 	</ul>
-	{#if purgeTarget}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
-			role="presentation"
-		>
-			<div
-				role="alertdialog"
-				aria-modal="true"
-				aria-labelledby="purge-title"
-				aria-describedby="purge-description"
-				class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-			>
-				<h2 id="purge-title" class="text-xl font-semibold">Purger définitivement ?</h2>
-				<p id="purge-description" class="mt-2 text-sm text-slate-700">
-					« {purgeTarget.title} » et sa capture liée seront supprimés sans possibilité de restauration.
-					Purger un Project supprime aussi ses Checkpoints.
-				</p>
-				<div class="mt-5 flex justify-end gap-2">
-					<button
-						type="button"
-						disabled={busy}
-						onclick={() => (purgeTarget = null)}
-						class="ui-button ui-button-quiet ui-focus">Annuler</button
-					>
-					<button
-						type="button"
-						disabled={busy}
-						onclick={() => purgeTarget && act('purge', purgeTarget.kind, purgeTarget.id)}
-						class="ui-button ui-button-primary ui-focus">Purger définitivement</button
-					>
-				</div>
-			</div>
-		</div>
-	{/if}
+	<ConfirmDialog
+		bind:open={purgeOpen}
+		title="Purger définitivement ?"
+		description={`« ${purgeTarget?.title ?? ''} » et sa capture liée seront supprimés sans possibilité de restauration. Purger un Project supprime aussi ses Checkpoints.`}
+		confirmLabel="Purger définitivement"
+		onConfirm={async () => {
+			if (purgeTarget) await act('purge', purgeTarget.kind, purgeTarget.id);
+		}}
+		{busy}
+		{error}
+	/>
 </div>

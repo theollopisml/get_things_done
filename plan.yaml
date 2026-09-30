@@ -295,20 +295,20 @@ slices:
 
   - id: "15"
     name: quality
-    done: false
+    done: true
     tasks:
       - description: "Ajouter les tests d'intégration PostgreSQL critiques"
-        done: false
+        done: true
       - description: "Ajouter les parcours Playwright critiques"
-        done: false
+        done: true
       - description: "Vérifier la parité fonctionnelle mobile/desktop"
-        done: false
+        done: true
       - description: "Finaliser les raccourcis keyboard-first"
-        done: false
+        done: true
       - description: "Vérifier focus, contraste et interactions non dépendantes de la couleur"
-        done: false
+        done: true
       - description: "Faire une passe performance et erreurs réseau"
-        done: false
+        done: true
 
   - id: "16"
     name: production

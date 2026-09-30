@@ -151,7 +151,9 @@
 		<div class="space-y-4">
 			{#each data.entries as entry (entry.id)}
 				<article
-					class="review-card space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+					tabindex="-1"
+					aria-label={entry.title}
+					class="ui-focus review-card space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
 				>
 					<div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
 						<time datetime={entry.createdAt.toISOString()}>{date.format(entry.createdAt)}</time>
@@ -201,6 +203,7 @@
 										type="button"
 										class="ui-button ui-button-quiet ui-focus"
 										aria-haspopup="dialog"
+										data-keyboard-item
 										disabled={busyAll || busy === entry.id}
 										onclick={(event) => openEditor(entry, event.currentTarget)}
 									>
