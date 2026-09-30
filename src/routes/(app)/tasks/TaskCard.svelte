@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { beforeNavigate, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import { toggleMarkdownTask } from '$lib/domain/markdown-preview';
 	import DatePickerInput from '$lib/components/DatePickerInput.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
@@ -90,6 +92,7 @@
 	let saved = $state(initial);
 	let saving = $state(false);
 	let error = $state('');
+	let deleteOpen = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let inFlight: Promise<boolean> | null = null;
 	let titleInput: HTMLInputElement | undefined;
@@ -201,31 +204,29 @@
 	}
 
 	async function remove() {
-		if (
-			busy ||
-			!window.confirm(
-				`Supprimer la Task « ${task.title} » ? Elle restera dans la corbeille pendant 30 jours.`
-			)
-		)
-			return;
+		if (busy) return;
 		if (!(await save())) return;
 		busy = true;
-		if (await onDelete?.(task.id)) editing = false;
+		if (await onDelete?.(task.id)) {
+			deleteOpen = false;
+			editing = false;
+		} else error = 'Suppression impossible. Réessaie.';
 		busy = false;
 	}
 
-	beforeNavigate((navigation) => {
-		if (saving || JSON.stringify(value) !== saved) {
-			if (
-				!window.confirm('Cette Task contient des modifications non enregistrées. Quitter la page ?')
-			) {
-				navigation.cancel();
-			}
-		}
-	});
-
 	onDestroy(() => clearTimeout(timer));
 </script>
+
+<UnsavedChangesGuard dirty={saving || JSON.stringify(value) !== saved} objectName="Task" />
+{#if onDelete}<ConfirmDialog
+		bind:open={deleteOpen}
+		title="Supprimer cette Task ?"
+		description={`« ${task.title} » sera placée dans la corbeille pendant 30 jours.`}
+		confirmLabel="Supprimer la Task"
+		onConfirm={remove}
+		{busy}
+		{error}
+	/>{/if}
 
 <Dialog.Root bind:open={editing}>
 	<article
@@ -290,7 +291,10 @@
 				{#if onDelete}<button
 						type="button"
 						disabled={busy}
-						onclick={remove}
+						onclick={() => {
+							error = '';
+							deleteOpen = true;
+						}}
 						class="ui-button ui-button-quiet ui-focus text-red-700">Supprimer</button
 					>{/if}
 			</div>

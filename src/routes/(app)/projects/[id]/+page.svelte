@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import { toggleMarkdownTask } from '$lib/domain/markdown-preview';
 	import QuickTaskComposer from '$lib/components/QuickTaskComposer.svelte';
 	import SelectMenu from '$lib/components/SelectMenu.svelte';
@@ -31,6 +33,7 @@
 	let confirmOpen = $state(false);
 	let pendingStatus = $state<ProjectStatus | null>(null);
 	let confirmError = $state('');
+	let deleteOpen = $state(false);
 	let deleteUndo = $state<{ kind: 'task' | 'checkpoint'; id: string } | null>(null);
 	let newCheckpoint = $state('');
 	let creatingCheckpoint = $state(false);
@@ -116,21 +119,17 @@
 	}
 
 	async function deleteProject() {
-		if (
-			busy ||
-			!window.confirm(
-				`Supprimer le Project « ${data.project.title} » ? Ses Tasks deviendront autonomes et ses Checkpoints iront dans la corbeille.`
-			)
-		)
-			return;
+		if (busy) return;
 		if (!(await save())) return;
 		busy = true;
 		const result = await postAction(
 			'/trash?/delete',
 			form({ kind: 'project', id: data.project.id })
 		);
-		if (result.ok) await goto(resolve(`/projects?undoProject=${data.project.id}`));
-		else error = result.error || 'Suppression impossible. Réessaie.';
+		if (result.ok) {
+			deleteOpen = false;
+			await goto(resolve(`/projects?undoProject=${data.project.id}`));
+		} else error = result.error || 'Suppression impossible. Réessaie.';
 		busy = false;
 	}
 
@@ -352,18 +351,22 @@
 		busy = false;
 	}
 
-	beforeNavigate((navigation) => {
-		if (
-			(saving || JSON.stringify(value) !== saved) &&
-			!window.confirm('Ce Project contient des modifications non enregistrées. Quitter la page ?')
-		)
-			navigation.cancel();
-	});
 	onDestroy(() => {
 		clearTimeout(timer);
 		clearTimeout(recurrenceUndoTimer);
 	});
 </script>
+
+<UnsavedChangesGuard dirty={saving || JSON.stringify(value) !== saved} objectName="Project" />
+<ConfirmDialog
+	bind:open={deleteOpen}
+	title="Supprimer ce Project ?"
+	description={`« ${data.project.title} » sera placé dans la corbeille pendant 30 jours. Ses Tasks deviendront autonomes et ses Checkpoints seront également supprimés.`}
+	confirmLabel="Supprimer le Project"
+	onConfirm={deleteProject}
+	{busy}
+	{error}
+/>
 
 <svelte:head><title>{data.project.title} · Projects · Get Things Done</title></svelte:head>
 
@@ -399,7 +402,10 @@
 		<button
 			type="button"
 			disabled={busy}
-			onclick={deleteProject}
+			onclick={() => {
+				error = '';
+				deleteOpen = true;
+			}}
 			class="ui-button ui-button-quiet ui-focus text-red-700">Supprimer le Project</button
 		>
 	</div>

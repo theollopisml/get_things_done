@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
 	import { Dialog } from 'bits-ui';
 	import { onDestroy } from 'svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
 	import MarkdownPreview from '$lib/components/MarkdownPreview.svelte';
 	import { toggleMarkdownTask } from '$lib/domain/markdown-preview';
 	import { postAction } from '$lib/post-action';
@@ -25,6 +26,7 @@
 	let busy = $state(false);
 	let saving = $state(false);
 	let error = $state('');
+	let deleteOpen = $state(false);
 	// Keep a local draft while the page reloads after other actions.
 	// svelte-ignore state_referenced_locally
 	let value = $state({
@@ -90,16 +92,13 @@
 	}
 
 	async function remove() {
-		if (
-			busy ||
-			!window.confirm(
-				`Supprimer le Checkpoint « ${checkpoint.title} » ? Les Tasks liées seront détachées.`
-			)
-		)
-			return;
+		if (busy) return;
 		if (!(await save())) return;
 		busy = true;
-		if (await onDelete(checkpoint.id)) editing = false;
+		if (await onDelete(checkpoint.id)) {
+			deleteOpen = false;
+			editing = false;
+		} else error = 'Suppression impossible. Réessaie.';
 		busy = false;
 	}
 
@@ -113,17 +112,19 @@
 		closing = false;
 	}
 
-	beforeNavigate((navigation) => {
-		if (
-			(saving || JSON.stringify(value) !== saved) &&
-			!window.confirm(
-				'Ce Checkpoint contient des modifications non enregistrées. Quitter la page ?'
-			)
-		)
-			navigation.cancel();
-	});
 	onDestroy(() => clearTimeout(timer));
 </script>
+
+<UnsavedChangesGuard dirty={saving || JSON.stringify(value) !== saved} objectName="Checkpoint" />
+<ConfirmDialog
+	bind:open={deleteOpen}
+	title="Supprimer ce Checkpoint ?"
+	description={`« ${checkpoint.title} » sera placé dans la corbeille pendant 30 jours. Les Tasks liées seront conservées et détachées.`}
+	confirmLabel="Supprimer le Checkpoint"
+	onConfirm={remove}
+	{busy}
+	{error}
+/>
 
 <Dialog.Root bind:open={editing}>
 	<article
@@ -168,7 +169,10 @@
 				<button
 					type="button"
 					disabled={busy}
-					onclick={remove}
+					onclick={() => {
+						error = '';
+						deleteOpen = true;
+					}}
 					class="ui-button ui-button-quiet ui-focus text-red-700">Supprimer</button
 				>
 			</div>

@@ -30,6 +30,8 @@ Work on **one slice at a time**, using three modes:
 -   Do not add dependencies, tables, services, or major abstractions
     without approval.
 -   Explore the codebase instead of asking questions it can answer.
+-   Never use browser alert, confirm, or prompt dialogs to validate an operation.
+    Use an accessible in-app modal consistent with the existing UI instead.
 
 ### REVIEW
 

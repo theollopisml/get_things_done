@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace browser confirmation dialogs for deletion and unsaved navigation with accessible in-app modals.
 - Replace native Task editor date and time inputs with a French calendar and segmented time fields, while preserving date, time, and autosave behavior.
 - Explain scheduled date and time dependencies in Task editing, clarify recurrence intervals, and show selected weekdays as accessible toggle pills.
 - Run PostgreSQL integration test files sequentially so shared database assertions are deterministic.
