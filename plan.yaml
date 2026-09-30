@@ -312,7 +312,7 @@ slices:
 
   - id: "16"
     name: production
-    done: false
+    done: true
     tasks:
       - description: "Aligner le plan, le PRD et l’architecture sur le serveur privé et la CI/CD GitHub Actions"
         done: true
@@ -343,6 +343,6 @@ slices:
       - description: "Tester une restauration de sauvegarde sur une base isolée"
         done: true
       - description: "Déployer sur le serveur et vérifier OAuth réel, Jev, parcours métier et accès mobile/desktop"
-        done: false
+        done: true
       - description: "Documenter exploitation, sauvegarde/restauration, retour arrière et diagnostic dans le README et actualiser le changelog"
         done: true
