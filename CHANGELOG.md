@@ -113,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explain rejected or expired GitHub sign-ins and offer account selection on retry instead of silently reusing another GitHub account.
 - Check the dedicated deployment VPN handshake and bound SSH connection attempts; use the client’s public WireGuard endpoint rather than the server’s internal listen port.
 - Keep private search queries and OAuth callback codes out of proxy logs; refresh proxy configuration on deployment and clean up only temporary test volumes.
 - Wait for PostgreSQL TCP readiness before migrations and restore checks, avoiding its temporary initialization server.

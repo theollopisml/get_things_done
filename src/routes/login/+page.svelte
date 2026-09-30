@@ -49,6 +49,6 @@
 	</button>
 
 	{#if error || data.authError}
-		<p role="alert" class="text-sm text-red-700">{error || 'Connexion refusée ou interrompue.'}</p>
+		<p role="alert" class="text-sm text-red-700">{error || data.authError}</p>
 	{/if}
 </main>
