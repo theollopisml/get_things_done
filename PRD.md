@@ -1355,6 +1355,16 @@ Support des navigateurs modernes uniquement.
 - états de sauvegarde fiables ;
 - actions destructrices récupérables via Trash ou Undo lorsque pertinent.
 
+### Hébergement et continuité de service
+
+- la V1 est hébergée sur le serveur privé du propriétaire ; l'accès HTTPS depuis desktop et téléphone passe par son VPN WireGuard ;
+- le produit reste online-only : sa disponibilité dépend du serveur et de sa connectivité ;
+- les données persistent lors des redémarrages et déploiements ;
+- des sauvegardes automatiques chiffrées et une restauration testée protègent les données ; le propriétaire synchronise les copies hors serveur sur son ordinateur lorsqu’il est connecté ;
+- une nouvelle version n'est déployée qu'après réussite des contrôles automatisés, avec vérification de disponibilité et procédure de retour arrière.
+
+Les mécanismes Docker, CI/CD et réseau sont définis dans `ARCHITECTURE.md`.
+
 ---
 
 ## 31. User flows principaux

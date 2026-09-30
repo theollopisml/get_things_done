@@ -146,3 +146,173 @@ iront dans `src/lib/server/application/`, la persistance dans
 `src/lib/server/repositories/`, et le schéma ainsi que la connexion Drizzle
 dans `src/lib/server/db/`. Les dossiers métier seront remplis au fil des
 slices qui les utilisent.
+
+
+## Production privée et CI/CD
+
+L'application et PostgreSQL tournent dans Docker Compose sur le serveur maison,
+avec HTTPS accessible uniquement via WireGuard à `https://10.8.0.1`.
+Les fichiers d'exploitation sont dans `deploy/` ; les secrets, certificats et
+états déployés restent dans `/srv/get-things-done` sur le serveur et hors Git.
+
+### Image et commandes de production
+
+```sh
+docker build -t gtd-production:test .
+bash scripts/smoke-image.sh gtd-production:test
+pnpm test:operations
+```
+
+Le smoke test crée ses propres conteneurs PostgreSQL, sans port exposé ni accès
+à la base locale. Il applique deux fois les migrations, vérifie `doctor`, les
+routes HTTP publiques, le refus des accès anonymes, le redémarrage et l'utilisateur
+non-root, puis détruit uniquement ses conteneurs temporaires.
+L'image ne contient ni `.env`, ni tests, ni clé de production. Elle inclut :
+
+```sh
+node scripts/migrate.mjs
+node scripts/doctor.mjs
+node build/index.js
+```
+
+Le Compose de production conserve PostgreSQL dans un volume et ne publie pas son
+port. Nginx publie uniquement `10.8.0.1:443`. L'application peut joindre OpenRouter
+via son réseau web ; le réseau PostgreSQL est interne.
+
+### Installation initiale du serveur
+
+Créer `/srv/get-things-done`, propriété de l'utilisateur d'exploitation, et copier
+`compose.yaml`, `nginx.conf`, `common.sh`, `deploy.sh`, `backup.sh`, ainsi que les
+unités de sauvegarde et `setup-host.sh`. Créer les fichiers suivants avec mode 600 :
+
+- `production.env`, d'après `deploy/production.env.example` ;
+- `app.env`, d'après `deploy/app.env.example` ;
+- `backup.env`, d'après `deploy/backup.env.example` ;
+- `smoke.env`, d'après `deploy/smoke.env.example`.
+
+Utiliser un mot de passe PostgreSQL hexadécimal pour sa compatibilité avec l'URL.
+`ORIGIN` et `BETTER_AUTH_URL` valent `https://10.8.0.1`. Le callback de l'OAuth App
+GitHub de production doit être `https://10.8.0.1/api/auth/callback/github`.
+Une OAuth App distincte permet de conserver celle de développement sur localhost.
+`BETTER_AUTH_SECRET` est un secret aléatoire distinct de celui de développement.
+
+Le dossier `tls/` contient `server.crt`, `server.key` et le certificat public
+`ca.crt`. Le certificat serveur couvre l'adresse VPN. Approuver `ca.crt` sur le
+navigateur/OS et le téléphone ; les clés privées de la CA restent sur l'ordinateur.
+Sur iOS, l'installation du profil doit être suivie de l'activation de la confiance
+pour cette CA. Renouveler le certificat serveur avant son expiration (un an).
+Les scripts vérifient les certificats ; ils n'utilisent pas `curl -k`.
+
+Créer une paire de clés WireGuard dédiée à la CD, sans réutiliser celle du PC.
+Le serveur réserve `10.8.0.250/32` à ce pair. Le script root préserve les pairs
+existants, refuse une adresse déjà utilisée et installe les unités systemd :
+
+```sh
+sudo bash /srv/get-things-done/setup-host.sh "$(cat /srv/get-things-done/deployment-wireguard.pub)"
+```
+
+La clé SSH dédiée à GitHub est autorisée pour l'utilisateur d'exploitation avec
+`restrict,from="10.8.0.250"`. Vérifier la clé hôte du serveur avant de la stocker.
+Ne jamais enregistrer de runner auto-hébergé pour ce dépôt public.
+
+### Configuration GitHub Actions
+
+La CI vérifie chaque push et pull request : lint, typecheck, unitaires, tests
+opérationnels, migrations, doctor, intégration PostgreSQL et E2E desktop/mobile/WebKit.
+Après ces contrôles, elle construit et teste l'image. Les pushes sur `main` la
+publient sur GHCR sous `sha-<commit>` ; la CD utilise son digest immuable.
+La publication est décrite dans la [documentation GitHub](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
+
+Configurer l'environnement GitHub `production`, limité à la branche `main`, avec :
+
+- variable `DEPLOY_HOST` : `ullop@10.8.0.1` ;
+- secret `DEPLOY_SSH_KEY` : clé SSH privée dédiée ;
+- secret `DEPLOY_KNOWN_HOSTS` : clé hôte SSH vérifiée ;
+- secret `DEPLOY_WIREGUARD_CONFIG` : configuration du pair CD, avec adresse
+  `10.8.0.250/32`, clé serveur, Endpoint public UDP et `AllowedIPs = 10.8.0.1/32`.
+
+La variable de dépôt `PRODUCTION_ENABLED` reste `false` pendant l'installation.
+La passer à `true` lorsque le VPN, les configurations et les certificats sont prêts.
+Les secrets applicatifs restent sur le serveur ; les pull requests n'ont aucun accès
+aux secrets de déploiement. La CD installe un tunnel temporaire sur un runner GitHub,
+vérifie SSH, transfère les scripts puis ferme le tunnel en fin de job.
+
+### Déploiement et retour arrière
+
+```sh
+cd /srv/get-things-done
+bash deploy.sh ghcr.io/theollopisml/get_things_done@sha256:DIGEST_VALIDE
+```
+
+Le déploiement verrouille les exécutions concurrentes, télécharge l'image, démarre
+PostgreSQL, sauvegarde la base puis applique les migrations dans un conteneur
+ponctuel. Une erreur de sauvegarde ou de migration empêche le remplacement de l'app.
+Après remplacement, il attend le healthcheck et vérifie `/ready` et `/login` via HTTPS.
+Le succès écrit `current-image` et conserve `previous-image`. Si l'app ou HTTPS échoue,
+le script tente de remettre l'image précédente et retourne toujours un code d'échec.
+Au premier déploiement, il n'existe pas de version précédente.
+
+Le retour arrière ne restaure pas la base : les migrations doivent rester compatibles
+avec l'application précédente. Les évolutions incompatibles demandent une procédure de
+maintenance dédiée. Ne jamais lancer `db:reset:dev` ni `docker compose down -v` en production.
+
+Le workflow **Redeploy a validated main commit** permet de relancer manuellement un
+commit complet de `main` dont la CI a réussi, y compris pour revenir à une version
+connue. Il vérifie ce commit et utilise l'image publiée ; il n'accepte pas un tag arbitraire.
+Les déploiements GitHub sont sérialisés et une opération en cours n'est pas annulée
+par un nouveau push. Le verrou serveur protège aussi les commandes manuelles.
+
+### Sauvegardes et restauration
+
+La sauvegarde est un export PostgreSQL au format custom, chiffré par OpenSSL CMS
+AES-256-GCM avec un certificat RSA public. Le serveur reçoit uniquement
+`backup-recipient.crt` ; la clé privée de déchiffrement reste hors serveur et hors Git.
+Conserver une copie sûre de cette clé : sa perte rend les sauvegardes inutilisables.
+Les archives locales sont gardées 30 jours ; les copies sur le PC ne sont pas supprimées
+automatiquement. Les sauvegardes ne contiennent pas les secrets applicatifs ou les
+certificats serveur, à conserver séparément.
+
+Après le premier déploiement, activer les sauvegardes quotidiennes :
+
+```sh
+sudo systemctl enable --now gtd-backup.timer
+systemctl status gtd-backup.timer
+journalctl -u gtd-backup.service
+```
+
+Le timer exécute la sauvegarde chaque jour autour de 03:00 ; une sauvegarde précède
+également chaque migration. Depuis l'ordinateur connecté au VPN :
+
+```sh
+bash scripts/pull-backups.sh "$HOME/.local/state/get-things-done/backups"
+bash scripts/test-restore.sh gtd-production:test /chemin/gtd-date.dump.cms /chemin/backup-recipient.key
+```
+
+Le test de restauration crée une base isolée dans un conteneur temporaire,
+déchiffre l'archive et vérifie l'intégrité avec `doctor`, puis nettoie ses conteneurs.
+Il ne reçoit jamais d'URL de base de production. Tester une restauration avant de
+considérer la slice terminée et après tout changement du mécanisme de sauvegarde.
+En cas de sinistre, restaurer et vérifier une nouvelle base avant de reconfigurer l'app.
+Jusqu'au téléchargement sur le PC, une panne du disque serveur peut perdre les
+sauvegardes récentes. Synchroniser régulièrement ; aucun stockage cloud n'est requis.
+
+### Diagnostic et Jev en production
+
+```sh
+cd /srv/get-things-done
+export APP_IMAGE="$(cat current-image)"
+docker compose --env-file production.env -f compose.yaml ps
+docker compose --env-file production.env -f compose.yaml logs --tail 100 app proxy
+docker compose --env-file production.env -f compose.yaml run --rm --no-deps app node scripts/doctor.mjs
+```
+
+Vérifier la connexion GitHub réelle et une capture Jev depuis les appareils du
+propriétaire après installation. Les E2E ne remplacent pas ce contrôle OAuth réel.
+
+Les captures et les IDs/titres des projets candidats sortent du serveur vers
+OpenRouter et TypeSafe pour le classement. L'auto-hébergement ne garantit donc pas
+un traitement uniquement européen. La [politique TypeSafe](https://typesafe.ai/legal/privacy-policy)
+annonce un hébergement aux États-Unis, l'absence d'entraînement sur les entrées et
+une rétention sans durée fixe ; la [politique OpenRouter](https://openrouter.ai/privacy)
+s'applique également. Aucun engagement de traitement EU ou de rétention nulle n'est
+présumé pour l'API Decisions alpha utilisée. Conditions consultées le 30 septembre 2026.

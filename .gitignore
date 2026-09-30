@@ -28,3 +28,13 @@ test-results/
 .idea/
 .vscode/
 .DS_Store
+
+# Production state, certificates and backups
+deploy/*.env
+deploy/tls/
+deploy/backups/
+deploy/*-image
+deploy/*.lock
+deploy/*.tmp
+*.dump.cms
+__pycache__/

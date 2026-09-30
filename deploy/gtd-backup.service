@@ -1,0 +1,12 @@
+[Unit]
+Description=Encrypted Get Things Done PostgreSQL backup
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ullop
+WorkingDirectory=/srv/get-things-done
+ExecStart=/srv/get-things-done/backup.sh
+UMask=0077

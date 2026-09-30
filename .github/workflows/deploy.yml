@@ -1,0 +1,72 @@
+name: Deploy validated image
+
+on:
+  workflow_call:
+    inputs:
+      image_digest:
+        required: true
+        type: string
+      source_commit:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - name: Connect dedicated deployment WireGuard peer
+        env:
+          WG_CONFIG: ${{ secrets.DEPLOY_WIREGUARD_CONFIG }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y wireguard-tools
+          temporary="$(mktemp)"
+          trap 'rm -f -- "$temporary"' EXIT
+          chmod 600 "$temporary"
+          printf '%s\n' "$WG_CONFIG" > "$temporary"
+          sudo install -m 600 "$temporary" /etc/wireguard/gtd.conf
+          sudo wg-quick up gtd
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_commit }}
+          persist-credentials: false
+      - name: Transfer deployment files and deploy by immutable digest
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^ghcr\.io/theollopisml/get_things_done@sha256:[a-f0-9]{64}$ ]]
+          [[ "$DEPLOY_HOST" =~ ^[a-z_][a-z0-9_-]*@[a-zA-Z0-9.-]+$ ]]
+          temporary="$(mktemp -d)"
+          trap 'rm -rf -- "$temporary"' EXIT
+          chmod 700 "$temporary"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$temporary/key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$temporary/known_hosts"
+          chmod 600 "$temporary/key" "$temporary/known_hosts"
+          options=(-i "$temporary/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$temporary/known_hosts")
+          tar -C deploy -czf "$temporary/deploy.tar.gz" compose.yaml nginx.conf common.sh deploy.sh backup.sh
+          scp "${options[@]}" "$temporary/deploy.tar.gz" "$DEPLOY_HOST:/srv/get-things-done/deploy.tar.gz"
+          # Registry credentials exist only for this SSH session, not on disk permanently.
+          printf '%s' "$GH_TOKEN" | ssh "${options[@]}" "$DEPLOY_HOST" "set -eu; cd /srv/get-things-done; tar -xzf deploy.tar.gz; rm deploy.tar.gz; export DOCKER_CONFIG=\$(mktemp -d); trap 'rm -rf -- \"\$DOCKER_CONFIG\"' EXIT; docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin; bash deploy.sh '$IMAGE_DIGEST'"
+      - name: Disconnect deployment VPN
+        if: always()
+        run: |
+          sudo wg-quick down gtd || true
+          sudo rm -f /etc/wireguard/gtd.conf

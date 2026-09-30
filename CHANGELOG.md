@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Package production as a non-root Node 24 Docker image with migrations and read-only diagnostics; smoke-test its HTTP routes, database migrations, and restart behavior.
+- Prepare private WireGuard HTTPS hosting with persistent PostgreSQL, serialized GitHub Actions/GHCR delivery, deployment failure checks, and application rollback.
+- Encrypt PostgreSQL backups with an off-server decryption key, synchronize copies to the owner's computer, and verify restoration in an isolated database.
+
 - Verify critical workflows with Playwright on desktop, mobile, and WebKit, using an isolated PostgreSQL database, real session checks, simulated Jev responses, and CI failure reports.
 - Cover concurrent capture requests, delayed Jev responses, manual classification races, and stale capture retries against PostgreSQL.
 - Reach the Collector with `/`, move between object editors with arrow keys, and focus creation fields and objects opened through the search palette.
@@ -76,6 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository configuration and environment variable template.
 
 ### Changed
+
+- Plan production on the owner’s private server with Docker Compose and GitHub Actions/GHCR delivery, including persistent PostgreSQL, off-server backups, tested restoration, and application rollback checks.
 
 - Replace browser confirmation dialogs for deletion and unsaved navigation with accessible in-app modals.
 - Replace native Task editor date and time inputs with a French calendar and segmented time fields, while preserving date, time, and autosave behavior.

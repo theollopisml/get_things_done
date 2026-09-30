@@ -314,17 +314,35 @@ slices:
     name: production
     done: false
     tasks:
-      - description: "Créer le Dockerfile production"
+      - description: "Aligner le plan, le PRD et l’architecture sur le serveur privé et la CI/CD GitHub Actions"
+        done: true
+      - description: "Inspecter ssh-maison et définir le stockage, le proxy HTTPS, l’accès VPN utilisateur et le pair WireGuard du runner GitHub"
+        done: true
+      - description: "Créer et tester le Dockerfile multi-stage Node 24 et le .dockerignore sans secrets"
+        done: true
+      - description: "Créer le Compose production app/PostgreSQL avec volume persistant, réseau privé, redémarrage et healthchecks"
+        done: true
+      - description: "Rendre les migrations et doctor exécutables dans l’image de production"
+        done: true
+      - description: "Configurer les secrets serveur, ORIGIN, BETTER_AUTH_URL et le callback GitHub OAuth HTTPS"
         done: false
-      - description: "Choisir le PaaS européen"
+      - description: "Vérifier et documenter les conditions de traitement OpenRouter/TypeSafe avant la production"
+        done: true
+      - description: "Compléter la CI GitHub avec le build et le smoke test de l’image après lint, typecheck, unitaires, intégration et E2E"
         done: false
-      - description: "Choisir PostgreSQL managé européen avec backups"
+      - description: "Publier sur GHCR les images des commits main validés, taguées par SHA et déployables par digest"
         done: false
-      - description: "Configurer secrets et variables d'environnement"
+      - description: "Configurer la CD sur runner GitHub hébergé avec pair WireGuard et clé SSH dédiés, sans secrets sur les pull requests"
         done: false
-      - description: "Appliquer les migrations de production"
+      - description: "Automatiser les sauvegardes PostgreSQL quotidiennes et avant migration, avec archives chiffrées conservées 30 jours et synchronisation sur l’ordinateur du propriétaire"
         done: false
-      - description: "Configurer healthcheck et domaine HTTPS"
+      - description: "Implémenter la CD GitHub sérialisée : pull par digest, migrations bloquantes, remplacement app, ready et smoke HTTPS"
         done: false
-      - description: "Faire un smoke test production complet"
+      - description: "Implémenter et tester le retour à l’image précédente sans rollback automatique de la base et la relance manuelle d’une image validée"
+        done: true
+      - description: "Tester une restauration de sauvegarde sur une base isolée"
+        done: true
+      - description: "Déployer sur le serveur et vérifier OAuth réel, Jev, parcours métier et accès mobile/desktop"
         done: false
+      - description: "Documenter exploitation, sauvegarde/restauration, retour arrière et diagnostic dans le README et actualiser le changelog"
+        done: true

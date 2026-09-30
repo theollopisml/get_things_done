@@ -18,7 +18,9 @@
 -   Temporal pour les calculs calendaires.
 -   Vitest + PostgreSQL réel + Playwright ; ESLint + Prettier +
     `svelte-check`.
--   Docker en production ; PaaS et PostgreSQL managé en Europe.
+-   Docker Compose en production sur le serveur privé du propriétaire ;
+    PostgreSQL auto-hébergé avec stockage persistant et sauvegardes hors serveur.
+-   CI/CD GitHub Actions ; images de production publiées sur GHCR.
 -   Jev via l'API Decisions d'OpenRouter, appelé uniquement par le
     serveur pour classifier les captures du Collector.
 
@@ -303,7 +305,7 @@ HTTPS, cookies sécurisés HttpOnly/SameSite adaptés, CSRF, authorization
 server-side sur toutes routes/actions privées, aucun secret client,
 security headers. Pas de `user_id` artificiel sur chaque table métier.
 
-## 15. Tests et CI
+## 15. Tests et CI/CD
 
 Vitest : domaine/récurrence/invariants/Markdown. Intégration : vrai
 PostgreSQL, migrations/transactions/use cases (`classifyEntry`,
@@ -327,10 +329,32 @@ CI :
 ``` text
 install -> lint -> typecheck -> unit
 -> PostgreSQL -> migrations -> integration
--> build -> E2E selon contexte
+-> build -> E2E desktop/mobile/WebKit
 ```
 
-`pnpm check` agrège les checks locaux.
+`pnpm check` agrège les checks locaux. La CI s'exécute sur les runners
+hébergés par GitHub pour les pushes et pull requests, avec une base de
+test isolée et sans secrets de production.
+
+Après réussite de tous les contrôles sur un commit de `main`, GitHub
+Actions construit et teste l'image Docker, puis la publie dans GitHub
+Container Registry (GHCR) avec le SHA du commit. Le déploiement utilise
+son digest immuable et conserve le digest de la version précédente.
+Le build ne reçoit aucun secret applicatif de production.
+
+Le job CD utilise un runner hébergé par GitHub, connecté au VPN privé
+par un pair WireGuard dédié (`10.8.0.250/32`) ; il rejoint le serveur
+par SSH sur `10.8.0.1`. Aucun runner auto-hébergé n'est enregistré sur
+ce dépôt public. Aucun job de pull request ne reçoit les secrets de
+déploiement ; seuls les commits validés de `main` peuvent déclencher
+un déploiement. Le tunnel est fermé et sa configuration supprimée en
+fin de job. Les permissions GitHub et SSH sont limitées aux besoins de
+publication et de déploiement ; la clé hôte SSH est vérifiée.
+
+Les déploiements sont sérialisés : un seul à la fois, sans interrompre
+une migration en cours. Une relance manuelle via GitHub Actions permet
+de redéployer une image déjà validée. La publication GHCR suit la
+[documentation GitHub](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
 
 ## 16. Observabilité
 
@@ -351,30 +375,86 @@ jamais effacée avant confirmation de persistance.
 
 ## 18. Déploiement
 
-SvelteKit `adapter-node` dans Docker, PaaS plutôt que VPS V1. PostgreSQL
-managé. App + DB en Europe, idéalement même région.
+SvelteKit `adapter-node` dans une image Docker multi-stage Node.js 24,
+exécutée sans privilèges. Docker Compose orchestre l'application et
+PostgreSQL sur le serveur privé du propriétaire, accessible depuis sa
+machine par l'alias SSH `ssh-maison`. Cet alias local n'est pas supposé
+exister sur le runner : l'accès de déploiement y est configuré séparément.
 
 Environnements : `local`, `CI`, `production`; pas de staging permanent.
+Local : PostgreSQL via Docker, app native avec `pnpm dev`. En production,
+PostgreSQL utilise un volume persistant et un réseau Docker privé ; son
+port n'est pas exposé à Internet. Le déploiement ne supprime aucun volume.
 
-Local : PostgreSQL via Docker, app native avec `pnpm dev`. Toute
-évolution de schéma passe par migration versionnée. Backups automatiques
-du fournisseur DB obligatoires ; export/`pg_dump` possible. Second
-backup externe chiffré éventuel plus tard.
+Un reverse proxy termine HTTPS et transmet les requêtes à l'application.
+L'accès utilisateur est limité au VPN WireGuard existant. Nginx dans
+Compose termine HTTPS sur `10.8.0.1:443`, avec un certificat signé par
+une CA privée dont le certificat public doit être approuvé sur les
+appareils du propriétaire. Les clés privées de cette CA restent hors
+serveur. Aucun port applicatif n'est ouvert sur l'adresse publique. Les accès desktop et
+mobile, l'URL de callback GitHub OAuth, `ORIGIN` et `BETTER_AUTH_URL`
+doivent être cohérents avec l'URL HTTPS retenue.
 
-Secrets uniquement via environnement/secret manager : `DATABASE_URL`,
+### Séquence de déploiement et retour arrière
+
+1. Télécharger l'image GHCR par digest et conserver la référence précédente.
+2. Vérifier la sauvegarde et appliquer les migrations versionnées dans
+   un conteneur ponctuel de la nouvelle image, avant de remplacer l'app.
+3. Arrêter le déploiement si une migration échoue ; ne pas remplacer l'app.
+4. Démarrer la nouvelle version et vérifier `/ready` avec une attente bornée,
+   puis un smoke test HTTP via le proxy HTTPS.
+5. En cas d'échec après remplacement, rétablir l'image précédente si le
+   schéma reste compatible, vérifier sa disponibilité et signaler l'échec
+   dans GitHub Actions. Au premier déploiement, l'absence de version
+   précédente est signalée explicitement.
+
+Le retour arrière de l'application ne restaure pas PostgreSQL. Les
+migrations doivent rester compatibles avec la version précédente ; une
+migration incompatible demande une procédure explicite de maintenance
+et de récupération avant déploiement. Aucun reset de développement ni
+migration inverse automatique en production.
+
+### Sauvegardes et exploitation
+
+Sauvegarde PostgreSQL quotidienne automatisée avec `pg_dump`, et avant
+une migration de production. Les archives sont chiffrées en CMS avec
+AES-256-GCM et un certificat RSA public ; la clé privée de déchiffrement
+reste sur l’ordinateur du propriétaire, hors du serveur. Les archives
+sont conservées 30 jours sur le serveur. Le propriétaire synchronise
+les copies chiffrées sur son ordinateur lorsqu’il est connecté, via
+`scripts/pull-backups.sh` ; une copie immédiate hors serveur ne bloque
+pas le déploiement. Jusqu’à cette synchronisation, une panne du disque
+du serveur peut perdre les dernières sauvegardes. Les copies téléchargées
+sont conservées jusqu’à suppression explicite par le propriétaire.
+Une restauration est testée sur une base isolée avant clôture de la
+slice, sans écraser la production. L'automatisation des sauvegardes est
+une tâche d'exploitation, indépendante du moteur de récurrence métier.
+
+La disponibilité dépend du serveur et de son réseau. Documenter les
+procédures de déploiement manuel, retour arrière, sauvegarde,
+restauration et diagnostic. `/health` contrôle le processus ; `/ready`
+contrôle aussi PostgreSQL ; `pnpm run doctor` reste un diagnostic en
+lecture seule, pas une dépendance du démarrage.
+
+Secrets applicatifs uniquement sur le serveur via environnement ou
+fichier protégé, jamais dans Git, l'image ou les logs : `DATABASE_URL`,
 `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
 `OWNER_GITHUB_ID`, `OPENROUTER_API_KEY`. `.env` non commité ;
-`.env.example` sans secrets.
+`.env.example` sans secrets. Les identifiants de déploiement et de lecture
+GHCR sont distincts des secrets applicatifs et configurés avec les
+permissions minimales nécessaires.
 
-## 19. Fournisseurs
+## 19. Infrastructure retenue
 
-Le fournisseur exact n'est pas couplé au code. Critères app :
-Docker/Node, Git deploy, secrets, healthchecks, domaine custom, faible
-coût, région EU. Critères DB : PostgreSQL standard, région EU, backups,
-export facile, pooling si nécessaire.
+- Serveur privé existant du propriétaire pour l'application et PostgreSQL.
+- GitHub Actions pour les vérifications, la publication et le déploiement.
+- GHCR pour les images Docker versionnées.
+- Runner CD GitHub hébergé, avec pair WireGuard dédié et accès SSH au serveur.
 
-Railway/Render/Fly et Neon/Supabase/autres seront comparés sur leurs
-offres **au moment du choix**.
+Aucun PaaS ni PostgreSQL managé requis pour la V1. Le VPN WireGuard
+existant assure l’accès privé ; Nginx assure HTTPS ; l’ordinateur du
+propriétaire conserve les copies de sauvegarde hors serveur. La localisation du serveur et des sauvegardes est documentée
+pendant la slice ; aucune région n'est présumée à partir de l'alias SSH.
 
 ## 20. Décisions explicitement rejetées
 
@@ -384,14 +464,14 @@ tRPC ; - Prisma ; - multi-tenancy / `user_id` partout ; - signup public
 ; - moteurs de recherche externes ; - cron/workers pour la récurrence
 ; - RRULE complète ; - state manager/cache client global ; - WYSIWYG
 lourd ; - triggers SQL métier ; - SQLite pour simuler PostgreSQL en
-tests ; - staging permanent ; - VPS/self-hosted PostgreSQL comme choix
-initial.
+tests ; - staging permanent.
 
 ## 21. Points volontairement ouverts
 
 À décider au bootstrap/déploiement, sans changer l'architecture : -
-version Node LTS exacte ; - PaaS exact ; - fournisseur PostgreSQL exact
-; - région EU exacte ; - durée exacte de rétention Trash ; - durée
+endpoint public et port UDP du pair WireGuard CD ; - approbation de
+la CA privée sur les appareils ; - fréquence de synchronisation des
+sauvegardes sur l’ordinateur du propriétaire ; - durée exacte de rétention Trash ; - durée
 exacte du debounce recherche ; - package Markdown précis ; - nécessité
 effective du polyfill Temporal ; - moment d'introduction de Sentry ; -
 budgets de performance chiffrés.
@@ -416,7 +496,7 @@ Vertical slices :
 13. Trash/restore/purge + Undo ;
 14. `doctor`, health/ready, logs ;
 15. E2E, responsive/mobile polish, keyboard-first ;
-16. Docker + production EU + backups.
+16. Docker Compose + serveur privé + CI/CD GitHub Actions/GHCR + backups testés.
 
 Chaque slice doit inclure migration éventuelle, domaine/use case,
 repository, UI et tests pertinents. Pas de couche construite longtemps
@@ -440,7 +520,7 @@ identifiants/titres des candidats admissibles. Ni session, ni clé, ni
 contenu d'autres objets n'est envoyé. Les logs contiennent l'ID de
 l'Entry, le modèle, la durée, un code d'erreur et éventuellement le coût,
 jamais le texte de la capture ou les titres des candidats.
-L'hébergement européen de l'app et de la base ne garantit pas la région
+L'auto-hébergement de l'app et de la base ne détermine pas la région
 de traitement de ce service externe ; cette condition doit être
 vérifiée avant le déploiement en production.
 

@@ -37,6 +37,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test:unit
+      - run: python3 -m unittest discover -s tests/operations -v
       - run: pnpm db:migrate
       - run: pnpm run doctor
       - run: pnpm test:integration
@@ -51,3 +52,43 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and smoke-test production image
+        run: |
+          docker build -t gtd-production:test .
+          bash scripts/smoke-image.sh gtd-production:test
+      - name: Publish validated main image
+        id: publish
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/theollopisml/get_things_done:sha-$COMMIT"
+          docker tag gtd-production:test "$image"
+          docker push "$image"
+          digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PRODUCTION_ENABLED == 'true'
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      image_digest: ${{ needs.image.outputs.digest }}
+      source_commit: ${{ github.sha }}
+    secrets: inherit

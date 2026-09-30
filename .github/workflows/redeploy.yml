@@ -1,0 +1,55 @@
+name: Redeploy a validated main commit
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full SHA of a main commit whose CI succeeded and image was published
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+jobs:
+  resolve:
+    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.resolve.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check successful main CI and resolve published image
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$COMMIT" origin/main
+          # Deployment failure must not invalidate an image whose checks/publish passed.
+          # Requiring both jobs also rejects runs before the image pipeline existed.
+          validated=0
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&event=push&status=completed" --jq '.workflow_runs[] | select(.head_branch == "main") | .id')"
+          for run in $runs; do
+            checks="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '[.jobs[] | select((.name == "verify" or .name == "image") and .conclusion == "success")] | length')"
+            if [[ "$checks" == 2 ]]; then validated=1; break; fi
+          done
+          (( validated == 1 ))
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/theollopisml/get_things_done:sha-$COMMIT"
+          docker pull "$image"
+          digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: resolve
+    uses: ./.github/workflows/deploy.yml
+    with:
+      image_digest: ${{ needs.resolve.outputs.digest }}
+      source_commit: ${{ inputs.commit }}
+    secrets: inherit
