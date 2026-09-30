@@ -6,7 +6,7 @@ private_key="${3:?Pass the off-server private decryption key}"
 [[ -f "$archive" && -f "$private_key" ]]
 project="gtd-restore-test-$$"
 cleanup() {
-  docker rm -f "$project-db" >/dev/null 2>&1 || true
+  docker rm -fv "$project-db" >/dev/null 2>&1 || true
   docker network rm "$project" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT

@@ -230,12 +230,15 @@ Configurer l'environnement GitHub `production`, limité à la branche `main`, av
 - secret `DEPLOY_KNOWN_HOSTS` : clé hôte SSH vérifiée ;
 - secret `DEPLOY_WIREGUARD_CONFIG` : configuration du pair CD, avec adresse
   `10.8.0.250/32`, clé serveur, Endpoint public UDP et `AllowedIPs = 10.8.0.1/32`.
+  Reprendre l’Endpoint du client WireGuard existant : son port public peut différer
+  du ListenPort du serveur à cause de la redirection du routeur.
 
 La variable de dépôt `PRODUCTION_ENABLED` reste `false` pendant l'installation.
 La passer à `true` lorsque le VPN, les configurations et les certificats sont prêts.
 Les secrets applicatifs restent sur le serveur ; les pull requests n'ont aucun accès
 aux secrets de déploiement. La CD installe un tunnel temporaire sur un runner GitHub,
-vérifie SSH, transfère les scripts puis ferme le tunnel en fin de job.
+vérifie le handshake WireGuard puis SSH avec une attente bornée, transfère les
+scripts puis ferme le tunnel en fin de job.
 
 ### Déploiement et retour arrière
 

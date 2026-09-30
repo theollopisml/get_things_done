@@ -38,6 +38,15 @@ jobs:
           printf '%s\n' "$WG_CONFIG" > "$temporary"
           sudo install -m 600 "$temporary" /etc/wireguard/gtd.conf
           sudo wg-quick up gtd
+          connected=0
+          for attempt in {1..20}; do
+            if sudo wg show gtd latest-handshakes | awk '$2 > 0 {found=1} END {exit !found}'; then
+              connected=1
+              break
+            fi
+            sleep 3
+          done
+          (( connected == 1 )) || { echo 'WireGuard handshake timed out; check public endpoint/port and peer key.' >&2; exit 1; }
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_commit }}
@@ -60,7 +69,7 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$temporary/key"
           printf '%s\n' "$SSH_KNOWN_HOSTS" > "$temporary/known_hosts"
           chmod 600 "$temporary/key" "$temporary/known_hosts"
-          options=(-i "$temporary/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$temporary/known_hosts")
+          options=(-i "$temporary/key" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$temporary/known_hosts")
           tar -C deploy -czf "$temporary/deploy.tar.gz" compose.yaml nginx.conf common.sh deploy.sh backup.sh
           scp "${options[@]}" "$temporary/deploy.tar.gz" "$DEPLOY_HOST:/srv/get-things-done/deploy.tar.gz"
           # Registry credentials exist only for this SSH session, not on disk permanently.

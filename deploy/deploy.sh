@@ -43,7 +43,7 @@ if ! compose up -d --no-deps --wait --wait-timeout 120 app; then
   rollback
   exit 1
 fi
-if ! compose up -d --no-deps proxy; then
+if ! compose up -d --no-deps --force-recreate proxy; then
   rollback
   exit 1
 fi

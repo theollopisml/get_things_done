@@ -113,6 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Check the dedicated deployment VPN handshake and bound SSH connection attempts; use the client’s public WireGuard endpoint rather than the server’s internal listen port.
+- Keep private search queries and OAuth callback codes out of proxy logs; refresh proxy configuration on deployment and clean up only temporary test volumes.
 - Wait for PostgreSQL TCP readiness before migrations and restore checks, avoiding its temporary initialization server.
 - Keep Collector drafts retryable after a failed or lost response, trap focus and restore it in purge confirmations, and focus the first capture when sequential review starts.
 - Improve muted text contrast in the light theme and distribute mobile navigation across its four actual destinations.

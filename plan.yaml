@@ -325,19 +325,19 @@ slices:
       - description: "Rendre les migrations et doctor exécutables dans l’image de production"
         done: true
       - description: "Configurer les secrets serveur, ORIGIN, BETTER_AUTH_URL et le callback GitHub OAuth HTTPS"
-        done: false
+        done: true
       - description: "Vérifier et documenter les conditions de traitement OpenRouter/TypeSafe avant la production"
         done: true
       - description: "Compléter la CI GitHub avec le build et le smoke test de l’image après lint, typecheck, unitaires, intégration et E2E"
-        done: false
+        done: true
       - description: "Publier sur GHCR les images des commits main validés, taguées par SHA et déployables par digest"
-        done: false
+        done: true
       - description: "Configurer la CD sur runner GitHub hébergé avec pair WireGuard et clé SSH dédiés, sans secrets sur les pull requests"
-        done: false
+        done: true
       - description: "Automatiser les sauvegardes PostgreSQL quotidiennes et avant migration, avec archives chiffrées conservées 30 jours et synchronisation sur l’ordinateur du propriétaire"
-        done: false
+        done: true
       - description: "Implémenter la CD GitHub sérialisée : pull par digest, migrations bloquantes, remplacement app, ready et smoke HTTPS"
-        done: false
+        done: true
       - description: "Implémenter et tester le retour à l’image précédente sans rollback automatique de la base et la relance manuelle d’une image validée"
         done: true
       - description: "Tester une restauration de sauvegarde sur une base isolée"

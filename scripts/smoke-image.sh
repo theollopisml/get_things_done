@@ -4,7 +4,7 @@ image="${1:?Pass the image to test}"
 project="gtd-image-test-$$"
 temporary="$(mktemp -d)"
 cleanup() {
-  docker rm -f "$project-app" "$project-db" >/dev/null 2>&1 || true
+  docker rm -fv "$project-app" "$project-db" >/dev/null 2>&1 || true
   docker network rm "$project" >/dev/null 2>&1 || true
   rm -rf -- "$temporary"
 }
