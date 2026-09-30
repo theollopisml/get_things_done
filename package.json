@@ -16,14 +16,15 @@
 		"check": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build",
 		"typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "prettier --check src vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml && eslint .",
-		"format": "prettier --write src vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml",
+		"lint": "prettier --check src scripts/doctor.mjs vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml && eslint .",
+		"format": "prettier --write src scripts/doctor.mjs vite.config.ts drizzle.config.ts eslint.config.js prettier.config.js package.json tsconfig.json pnpm-workspace.yaml",
 		"test:unit": "vitest run --passWithNoTests",
-		"test:integration": "RUN_DB_TESTS=1 vitest run --maxWorkers=1 src/lib/server/application/captures.integration.test.ts src/lib/server/application/tasks.integration.test.ts src/lib/server/application/projects.integration.test.ts src/lib/server/application/project-tasks.integration.test.ts src/lib/server/application/checkpoints.integration.test.ts src/lib/server/application/trash.integration.test.ts src/lib/server/repositories/jev-candidates.integration.test.ts src/lib/server/repositories/search.integration.test.ts 'src/routes/(app)/review/review.integration.test.ts' 'src/routes/(app)/projects/projects.integration.test.ts'",
+		"test:integration": "RUN_DB_TESTS=1 vitest run --maxWorkers=1 src/lib/server/application/captures.integration.test.ts src/lib/server/application/tasks.integration.test.ts src/lib/server/application/projects.integration.test.ts src/lib/server/application/project-tasks.integration.test.ts src/lib/server/application/checkpoints.integration.test.ts src/lib/server/application/trash.integration.test.ts src/lib/server/repositories/jev-candidates.integration.test.ts src/lib/server/repositories/search.integration.test.ts src/lib/server/operations/doctor.integration.test.ts 'src/routes/(app)/review/review.integration.test.ts' 'src/routes/(app)/projects/projects.integration.test.ts'",
 		"test": "pnpm test:unit",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
-		"db:reset:dev": "node scripts/reset-dev-db.mjs"
+		"db:reset:dev": "node scripts/reset-dev-db.mjs",
+		"doctor": "node scripts/doctor.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

@@ -58,6 +58,38 @@ une migration avec `pnpm db:generate`, relire son SQL dans
 `pnpm check` exécute le lint, le typecheck, les tests unitaires et le build.
 La CI exécute ces contrôles et applique les migrations sur un PostgreSQL neuf.
 
+## Diagnostic et supervision
+
+`GET /health` est public et renvoie `200` lorsque le processus sert des requêtes.
+`GET /ready` est public et renvoie `200` si PostgreSQL répond, ou `503` en cas
+d'échec ou après trois secondes d'attente. Ces réponses ne sont pas mises en cache.
+
+Pour vérifier la connexion, les migrations et l'intégrité métier :
+
+```sh
+pnpm run doctor
+pnpm run doctor --verbose
+```
+
+Le mot `run` est nécessaire : `pnpm doctor` exécute le diagnostic intégré à pnpm.
+La commande de l'application charge `.env` et respecte les variables déjà définies
+dans l'environnement. Elle vérifie les liens entre objets, les dates et récurrences,
+les positions et les classifications, dans une transaction PostgreSQL en lecture
+seule. Les liens historiques de Revue vers des objets supprimés sont acceptés.
+Le mode verbose affiche les IDs concernés, sans titre, description ou capture.
+
+Codes de sortie : `0` si les contrôles passent, `1` si une incohérence est détectée,
+`2` si le diagnostic ne peut pas s'exécuter ou si les arguments sont invalides.
+Si les migrations ne correspondent pas aux fichiers du dépôt, les contrôles métier
+sont suspendus jusqu'à l'alignement du schéma. La commande ne répare aucune donnée
+et n'est pas une condition du démarrage de l'application.
+
+Les logs serveur sont des lignes JSON avec timestamp, niveau, événement et, pour
+les requêtes HTTP, identifiant de requête, route, statut et durée. L'en-tête
+`x-request-id` permet de retrouver une réponse dans les logs ; Jev conserve le
+même identifiant pendant son traitement en arrière-plan. Les logs n'incluent ni
+paramètres de recherche, ni contenu utilisateur, ni secrets.
+
 ## Organisation du code
 
 Les règles métier pures iront dans `src/lib/domain/`. Les cas d'usage serveur

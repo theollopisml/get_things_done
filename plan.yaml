@@ -280,18 +280,18 @@ slices:
 
   - id: "14"
     name: operations
-    done: false
+    done: true
     tasks:
       - description: "Créer /health"
-        done: false
+        done: true
       - description: "Créer /ready"
-        done: false
+        done: true
       - description: "Ajouter les logs structurés sans contenu utilisateur"
-        done: false
-      - description: "Implémenter pnpm doctor en lecture seule"
-        done: false
-      - description: "Ajouter pnpm doctor --verbose"
-        done: false
+        done: true
+      - description: "Implémenter pnpm run doctor en lecture seule (doctor est une commande native de pnpm)"
+        done: true
+      - description: "Ajouter pnpm run doctor --verbose"
+        done: true
 
   - id: "15"
     name: quality

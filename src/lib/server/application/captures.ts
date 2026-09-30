@@ -3,6 +3,7 @@ import { hasContent } from '$lib/domain/capture';
 import type { ClassifiedKind } from '$lib/domain/capture';
 import { getJevClient, JevError, JEV_MODEL } from '$lib/server/jev/client';
 import { decideCapture } from '$lib/server/jev/classification';
+import { logEvent } from '$lib/server/operations/log';
 import {
 	applyJevClassification,
 	classifyEntry,
@@ -151,6 +152,7 @@ export async function getCollectorClassificationStatus(id: unknown) {
 function scheduleJevClassification(id: string, rawContent: string, dependencies: JevDependencies) {
 	if (activeClassifications.has(id)) return;
 	activeClassifications.add(id);
+	const startedAt = Date.now();
 	setImmediate(() => {
 		void classifyWithJev(id, rawContent, dependencies)
 			.catch(async () => {
@@ -159,14 +161,13 @@ function scheduleJevClassification(id: string, rawContent: string, dependencies:
 				} catch {
 					// The persisted Entry remains available for a later retry.
 				}
-				console.error(
-					JSON.stringify({
-						event: 'jev_classification',
-						entryId: id,
-						model: JEV_MODEL,
-						code: 'internal'
-					})
-				);
+				logEvent('error', {
+					event: 'jev_classification',
+					entry_id: id,
+					model: JEV_MODEL,
+					duration_ms: Date.now() - startedAt,
+					error: 'internal'
+				});
 			})
 			.finally(() => activeClassifications.delete(id));
 	});
@@ -195,27 +196,22 @@ async function classifyWithJev(id: string, rawContent: string, dependencies: Jev
 		if (!classified) throw new InvalidCapture('Capture indisponible.');
 		if (classified === 'stale') {
 			await markJevFailed(id);
-			console.warn(
-				JSON.stringify({
-					event: 'jev_classification',
-					entryId: id,
-					model: JEV_MODEL,
-					durationMs: Date.now() - startedAt,
-					code: 'stale_capture'
-				})
-			);
+			logEvent('warn', {
+				event: 'jev_classification',
+				entry_id: id,
+				model: JEV_MODEL,
+				duration_ms: Date.now() - startedAt,
+				error: 'stale_capture'
+			});
 			return { status: 'saved_pending_retry' as const, entryId: id };
 		}
-		console.info(
-			JSON.stringify({
-				event: 'jev_classification',
-				entryId: id,
-				model: decision.model,
-				durationMs: Date.now() - startedAt,
-				cost: decision.cost,
-				code: 'classified'
-			})
-		);
+		logEvent('info', {
+			event: 'jev_classification',
+			entry_id: id,
+			model: decision.model,
+			duration_ms: Date.now() - startedAt,
+			cost: decision.cost
+		});
 		return { status: 'saved_and_classified' as const, entryId: id, kind: classified };
 	} catch (error) {
 		if (!(error instanceof JevError)) throw error;
@@ -224,15 +220,13 @@ async function classifyWithJev(id: string, rawContent: string, dependencies: Jev
 		if (current?.classificationState === 'classified') {
 			return { status: 'saved_and_classified' as const, entryId: id, kind: linkedKind(current) };
 		}
-		console.warn(
-			JSON.stringify({
-				event: 'jev_classification',
-				entryId: id,
-				model: JEV_MODEL,
-				durationMs: Date.now() - startedAt,
-				code: error.code
-			})
-		);
+		logEvent('warn', {
+			event: 'jev_classification',
+			entry_id: id,
+			model: JEV_MODEL,
+			duration_ms: Date.now() - startedAt,
+			error: error.code
+		});
 		return { status: 'saved_pending_retry' as const, entryId: id };
 	}
 }

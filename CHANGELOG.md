@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose public `/health` and `/ready` probes, with uncached responses and a bounded PostgreSQL readiness check.
+- Diagnose migration history and business integrity with read-only `pnpm run doctor`, verbose object IDs, and actionable exit codes.
+- Emit structured HTTP and Jev logs with request correlation, durations, and safe error codes while excluding user content and secrets.
+- Verify operational diagnostics against an isolated PostgreSQL database and run the diagnostic after migrations in CI.
 - Delete Tasks, Projects, and Checkpoints into a private Trash, with restoration for 30 days, confirmed permanent purge, and short Undo feedback.
 - Preserve Tasks while detaching them from deleted Projects or Checkpoints; keep Jev review links to deleted objects until permanent purge.
 - Automatically remove expired Trash contents when the Trash is opened, including linked classified captures.
